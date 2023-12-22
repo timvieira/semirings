@@ -7,10 +7,10 @@ setup(name='semirings',
       project_url = 'https://github.com/timvieira/semirings',
       install_requires = [
           'numpy',
-          'IPython',
+          'scipy',       # for convex hull support
           'graphviz',
           'pytest',
-          'arsenal',
+          'arsenal',     # https://github.com/timvieira/arsenal
       ],
       readme=open('README.md').read(),
       packages = ['semirings'],
