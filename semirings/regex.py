@@ -1,4 +1,4 @@
-from . import base
+from semirings import Semiring
 from arsenal.iterextras import merge_roundrobin, fair_product
 
 from arsenal import colors
@@ -6,11 +6,11 @@ from arsenal import colors
 COLOR = colors.magenta
 
 
-from .fsa import FSA
+from semirings.fsa import FSA
 from functools import cached_property
 
 
-class RegularLanguage(base.Semiring):
+class RegularLanguage(Semiring):
 
     @cached_property
     def fsa(self):
