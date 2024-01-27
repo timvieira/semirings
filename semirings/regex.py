@@ -1,10 +1,6 @@
 from semirings import Semiring
 from arsenal.iterextras import merge_roundrobin, fair_product
 
-from arsenal import colors
-#COLOR = '%s'
-COLOR = colors.magenta
-
 
 from semirings.fsa import FSA
 from functools import cached_property
@@ -95,7 +91,7 @@ class Symbol(RegularLanguage):
         super().__init__()
     @cached_property
     def fsa(self):      return FSA.lift(self.x)
-    def __repr__(self): return COLOR % f'{self.x}'
+    def __repr__(self): return f'{self.x}'
     def __iter__(self):
         yield self
 #    def __call__(self, *args):

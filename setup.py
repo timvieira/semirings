@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='semirings',
-      version='0.1',
+      version='0.3.0',
       description='Semirings are a powerful abstraction for dynamic programming.',
       author='Tim Vieira',
       project_url = 'https://github.com/timvieira/semirings',
@@ -12,6 +12,6 @@ setup(name='semirings',
           'pytest',
           'arsenal',     # https://github.com/timvieira/arsenal
       ],
-      readme=open('README.md').read(),
+      long_description=open('README.md').read(),
       packages = ['semirings'],
 )

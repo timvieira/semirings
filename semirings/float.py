@@ -24,3 +24,6 @@ class Float(base.Semiring):
     @classmethod
     def multiplicity(cls,x,m):
         return x*m
+
+    def metric(self, other):
+        return abs(self - other)

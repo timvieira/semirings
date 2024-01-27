@@ -63,6 +63,8 @@ class Semiring:
         return y
     def __round__(self, precision):
         return self
+    def metric(self, other):
+        return (self != other)
 
 
 class Chart(dict):
