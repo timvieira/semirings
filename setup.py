@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='semirings',
-      version='0.3.0',
+      version='0.3.1',
       description='Semirings are a powerful abstraction for dynamic programming.',
       author='Tim Vieira',
       project_url = 'https://github.com/timvieira/semirings',
