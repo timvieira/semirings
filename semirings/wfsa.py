@@ -281,6 +281,10 @@ class WFSA:
     def min(self):
         return self.simple.min.to_wfsa()
 
+    @cached_property
+    def epsremove(self):
+        return self.simple.to_wfsa()
+
     def multiplicity(self, m):
         return WFSA.lift(EPSILON, m) * self
 
@@ -489,7 +493,7 @@ class Simple:
         return np.array(basis)
 
     def backward_conjugate(self):
-        return self.reverse.forward_conjugate()
+        return self.reverse.forward_conjugate().reverse
 
     def to_wfsa(self):
         m = WFSA()
@@ -543,8 +547,37 @@ def test_min():
     m = M.min
     #print(m)
     #print(m.to_wfsa().push())
-
     assert m.dim == 2, m.dim
+
+    M = WFSA.one + a + a * b + a * b * c
+    m = M.min
+    C = compare_language(M.min, M, M.alphabet, 5)
+    assert C.max_err <= 1e-10
+
+    #M = (a + b + c) * (a + b + c)
+    M = (a*a + a*b + a*c) + (b*a + b*b + b*c) + (c*a + c*b + c*c)
+    m = M.min
+    C = compare_language(M.min, M, M.alphabet, 5)
+    assert C.max_err <= 1e-10
+    assert m.dim == 3
+
+    M = (a + b + c) * (a + b + c)
+    m = M.min
+    C = compare_language(M.min, M, M.alphabet, 5)
+    assert C.max_err <= 1e-10
+    assert m.dim == 3
+
+
+
+def compare_language(have, want, alphabet, length):
+    from arsenal.maths import compare
+    from itertools import product
+    A = {}; B = {}
+    for t in range(length+1):
+        for x in product(alphabet, repeat=t):
+            B[x] = have(x)
+            A[x] = want(x)
+    return compare(A, B, verbose=0)
 
 
 def test_equivalence():
@@ -552,7 +585,6 @@ def test_equivalence():
     a = WFSA.lift('a', 1)
     b = WFSA.lift('b', 1)
     c = WFSA.lift('c', 1)
-
 
     #___________________________________________________________________________
     #
