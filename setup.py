@@ -10,7 +10,9 @@ setup(name='semirings',
           'scipy',       # for convex hull support
           'graphviz',
           'pytest',
-          'arsenal',     # https://github.com/timvieira/arsenal
+          'arsenal @ git+https://github.com/timvieira/arsenal',
+          'wfsa @ git+https://github.com/timvieira/wfsa',
+          'fsa @ git+https://github.com/timvieira/fsa',
       ],
       long_description=open('README.md').read(),
       packages = ['semirings'],
