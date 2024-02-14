@@ -9,8 +9,8 @@ from semirings import (
     Why, Lineage, make_semiring
 )
 from semirings.regex import RegularLanguage
-from semirings.wfsa import WFSA, EPSILON
-from semirings.fsa import FSA
+from wfsa import WFSA, EPSILON
+from fsa import FSA
 
 
 class WeightedGraph:
@@ -163,63 +163,6 @@ def test_uncertainty_sets():
     print(x, '*', z, '==', x * z)
 
     assert ((x + y) * z).x <= (x * z + y * z).x, [(x + y) * z, x * z + y * z]
-
-
-def todo_wfsa():
-
-    S = WFSA
-    S.multiplicity = lambda x, m: x * WFSA.lift(EPSILON, m)
-
-    a = S.lift('a', 1)
-    b = S.lift('b', 1)
-    c = S.lift('c', 1)
-
-    members = [
-        a,
-        b,
-        c,
-        a.star() * b,
-#        b.star(),
-#        (a*b).star(),
-        a * b.star() * c,
-        (a + b) * c,
-        (a * c + b * c),
-#        (a.star() * b).star() * a.star(),
-    ]
-
-    # TODO: experimental support for hashing weighted regular languages
-    if 0:
-        have = set(); want = set()
-        for A in members:
-            for B in members:
-                if hash(A) != hash(B):
-                    have.add((A,B))
-                if A.counterexample(B) is not None:
-                    want.add((A,B))
-
-        print('hash function:')
-        precision = len(have & want) / len(have) if len(have) > 0 else 1
-        recall = len(have & want) / len(want) if len(want) > 0 else 1
-        print('  precision:', precision)
-        print('  recall:   ', recall)
-
-        if precision != 1:
-            print()
-            print(colors.light.red % 'false positives:')
-            for a,b in have - want:
-                #print(a.simple.to_wfsa())   # remove epsilons
-                #print(b.simple.to_wfsa())
-
-                print(a.min)
-                print(b.min)
-
-                print('hash:', hash(a), hash(b))
-                print('counterexample:', a.counterexample(b))
-                print()
-
-        assert precision == 1
-
-    check_axioms_samples(S,members)
 
 
 def test_funky():

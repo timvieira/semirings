@@ -2,7 +2,7 @@ from semirings import Semiring
 from arsenal.iterextras import merge_roundrobin, fair_product
 
 
-from semirings.fsa import FSA
+from fsa import FSA
 from functools import cached_property
 
 
