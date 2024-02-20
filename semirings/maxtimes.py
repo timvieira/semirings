@@ -12,8 +12,7 @@ class MaxTimes(base.Semiring):
 
     def __eq__(self, other):
         return (isinstance(other, MaxTimes)
-                and (self.score == other.score   # for infinity
-                     or abs(self.score - other.score) < 1e-10))
+                and self.score == other.score)
 
     def __hash__(self):
         return hash(self.score)
