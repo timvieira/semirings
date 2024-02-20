@@ -117,7 +117,6 @@ class Star(_LazySort):
             return
         v = one
         while True:
-            print('star...', self.a)
             yield from v
             v *= self.a
     def __repr__(self):
