@@ -6,7 +6,7 @@ from semirings import (
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Wrapped,
-    Why, Lineage, make_semiring
+    Why, Lineage, make_semiring, MatrixSemiring
 )
 from semirings.regex import RegularLanguage
 from wfsa import WFSA, EPSILON
@@ -763,6 +763,164 @@ def test_lazysort():
     check(a.star(), [LazySort.one, a, a*a, a*a*a, a*a*a*a], T=5)
 
 
+def test_lazysort_sorted_invariant():
+    """Verify that LazySort iterators always yield elements in descending score order."""
+
+    def scores(expr, T=20):
+        return [x.score for x in take(T, expr)]
+
+    def is_descending(xs):
+        return all(a >= b for a, b in zip(xs, xs[1:]))
+
+    a = LazySort(0.5, 'a')
+    b = LazySort(0.3, 'b')
+    c = LazySort(0.7, 'c')
+
+    # Sum should be sorted
+    s = scores(a + b + c)
+    assert is_descending(s), f'Sum not sorted: {s}'
+
+    # Prod should be sorted
+    s = scores((a + b) * (b + c))
+    assert is_descending(s), f'Prod not sorted: {s}'
+
+    # Nested expression
+    s = scores((a + b) * (b + c) + a * c)
+    assert is_descending(s), f'Nested expr not sorted: {s}'
+
+
+def test_lazysort_star_multi_element():
+    """Star of a multi-element sum must yield in sorted order.
+
+    This is the critical test: Star.__iter__ currently concatenates
+    `yield from` on each power rather than merging sorted streams,
+    so the output is NOT globally sorted when the argument is a sum.
+
+    Example: star(0.5 + 0.3) yields
+      [1, 0.5, 0.3, 0.25, 0.15, 0.15, 0.09, 0.125, ...]
+                                              ^^^^^ ^^^^^ BUG: 0.125 > 0.09
+    The power-2 terms (0.25, 0.15, 0.15, 0.09) are interleaved correctly
+    within that power, but the transition to power-3 (0.125) is not merged
+    with the tail of power-2.
+    """
+
+    def scores(expr, T=15):
+        return [x.score for x in take(T, expr)]
+
+    def is_descending(xs):
+        return all(a >= b for a, b in zip(xs, xs[1:]))
+
+    a = LazySort(0.5, 'a')
+    b = LazySort(0.3, 'b')
+    ab = a + b
+
+    s = scores(ab.star())
+    assert is_descending(s), (
+        f'Star of multi-element sum is not sorted:\n{s}'
+    )
+
+
+def test_lazysort_star_single_descending():
+    """Star of a single element with score in (0,1) should be sorted descending."""
+
+    def scores(expr, T=10):
+        return [x.score for x in take(T, expr)]
+
+    def is_descending(xs):
+        return all(a >= b for a, b in zip(xs, xs[1:]))
+
+    a = LazySort(0.5, 'a')
+    s = scores(a.star())
+    # powers: 1, 0.5, 0.25, 0.125, ... — should be descending
+    assert is_descending(s), f'Star of single element (score<1) not sorted: {s}'
+
+
+def test_lazysort_star_score_gt_1():
+    """Star of an element with score > 1 yields ascending scores, not descending.
+
+    The existing test_lazysort checks star(2) == [one, a, a*a, ...] which has
+    scores [1, 2, 4, 8, 16] — ascending. This violates the descending order
+    invariant that Sum and Prod rely on.  The existing test only passes because
+    it checks star in isolation (not composed with other operations).
+    """
+
+    def scores(expr, T=10):
+        return [x.score for x in take(T, expr)]
+
+    def is_descending(xs):
+        return all(a >= b for a, b in zip(xs, xs[1:]))
+
+    a = LazySort(2, 'a')
+    s = scores(a.star(), T=5)
+    # scores are [1, 2, 4, 8, 16] — ascending, which is WRONG
+    assert is_descending(s), f'Star of element with score>1 not sorted: {s}'
+
+
+def test_lazysort_star_composed():
+    """Star result used inside a larger expression must maintain sort order."""
+
+    def scores(expr, T=20):
+        return [x.score for x in take(T, expr)]
+
+    def is_descending(xs):
+        return all(a >= b for a, b in zip(xs, xs[1:]))
+
+    a = LazySort(0.5, 'a')
+    b = LazySort(0.3, 'b')
+    c = LazySort(0.8, 'c')
+
+    # star(a) * c — should still be sorted
+    expr = a.star() * c
+    s = scores(expr)
+    assert is_descending(s), f'star(a) * c not sorted: {s}'
+
+    # c + star(a+b) — should be sorted
+    expr = c + (a + b).star()
+    s = scores(expr)
+    assert is_descending(s), f'c + star(a+b) not sorted: {s}'
+
+
+def test_lazysort_distributivity():
+    """Test distributivity: a*(b+c) == a*b + a*c for various expressions."""
+
+    def check(a, b, T=None):
+        A = list(a.take(T))
+        B = list(take(T, b))
+        assert A == B, f'\n\n{A}\n{B}\n'
+
+    a = LazySort(0.5, 'a')
+    b = LazySort(0.3, 'b')
+    c = LazySort(0.7, 'c')
+    d = LazySort(0.2, 'd')
+
+    # basic distributivity
+    check(a * (b + c), a * b + a * c)
+
+    # right distributivity
+    check((a + b) * c, a * c + b * c)
+
+    # with more terms
+    check(a * (b + c + d), a * b + a * c + a * d)
+
+    # double distribution
+    check((a + b) * (c + d), a*c + a*d + b*c + b*d)
+
+
+def test_lazysort_associativity_of_sum():
+    """(a + b) + c should yield same elements as a + (b + c)."""
+
+    def check(a, b, T=None):
+        A = list(a.take(T))
+        B = list(take(T, b))
+        assert A == B, f'\n\n{A}\n{B}\n'
+
+    a = LazySort(0.5, 'a')
+    b = LazySort(0.3, 'b')
+    c = LazySort(0.7, 'c')
+
+    check((a + b) + c, a + (b + c))
+
+
 def test_bottleneck():
 
     one = Bottleneck.one
@@ -1030,6 +1188,35 @@ def assert_equal(x, *ys):  # pragma: no cover
     else:
         print(colors.bad, x, *ys)
         assert 0
+
+
+def test_matrix_semiring_boolean():
+    M = MatrixSemiring(Boolean, 'ab')
+    T, F = Boolean(True), Boolean(False)
+
+    members = [
+        M.zero,
+        M.one,
+        M({('a','a'): T, ('a','b'): T, ('b','a'): F, ('b','b'): F}),
+        M({('a','a'): F, ('a','b'): T, ('b','a'): T, ('b','b'): F}),
+    ]
+
+    check_axioms_samples(M, members)
+
+
+def test_matrix_semiring_minplus():
+    M = MatrixSemiring(MinPlus, [0, 1])
+
+    members = [
+        M.zero,
+        M.one,
+        M({(0,0): MinPlus(1), (0,1): MinPlus(2),
+           (1,0): MinPlus(3), (1,1): MinPlus(4)}),
+        M({(0,0): MinPlus(0), (0,1): MinPlus.zero,
+           (1,0): MinPlus.zero, (1,1): MinPlus(0)}),
+    ]
+
+    check_axioms_samples(M, members)
 
 
 if __name__ == '__main__':
