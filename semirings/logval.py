@@ -136,6 +136,9 @@ class LogVal(base.Semiring):
             c.ell = a.ell + log1pexp(x)
         return c
 
+    def metric(self, other):
+        return abs(float(self) - float(other))
+
     def star(self):
         return LogVal.one / (LogVal.one - self)
 

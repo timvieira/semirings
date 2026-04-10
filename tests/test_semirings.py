@@ -1180,8 +1180,16 @@ def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=Tr
         raise e
 
 
-def assert_equal(x, *ys):  # pragma: no cover
-    if all(x == y for y in ys):
+def _metric(x, y):
+    if hasattr(x, 'metric'):
+        return x.metric(y)
+    if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+        if x == y: return 0
+        return abs(x - y)
+    return x != y
+
+def assert_equal(x, *ys, tol=1e-10):  # pragma: no cover
+    if all(_metric(x, y) <= tol for y in ys):
         #print(colors.ok, x, *ys)
         pass
     else:

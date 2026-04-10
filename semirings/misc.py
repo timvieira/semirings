@@ -163,6 +163,8 @@ def dual(base):
         def __hash__(self):   return hash((self.p, self.r))
         def __iter__(self):   return iter((self.p, self.r))
         def __repr__(self):   return f'⟨{self.p}, {self.r}⟩'
+        def metric(self, other):
+            return max(base.metric(self.p, other.p), base.metric(self.r, other.r))
         def __add__(self, y): return self.__class__(self.p + y.p, self.r + y.r)
         def star(self):
             ps = base.star(self.p)

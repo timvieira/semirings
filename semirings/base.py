@@ -113,6 +113,11 @@ class Wrapped(Semiring):
     def __eq__(self, other): return self.x == other.x
     def __hash__(self):      return hash(self.x)
     def __repr__(self):      return f'{self.__class__.__name__}({self.x})'
+    def metric(self, other):
+        if self.x == other.x: return 0
+        if isinstance(self.x, (int, float)) and isinstance(other.x, (int, float)):
+            return abs(self.x - other.x)
+        return self != other
     @classmethod
     def lift(cls, x):        return cls(x)
 
@@ -134,6 +139,11 @@ def make_semiring(name, plus, times, zero, one, star=None, pp=None, hash=hash, m
                 return f'{name}({self.x})'
             else:
                 return pp(self.x)
+        def metric(self, other):
+            if self.x == other.x: return 0
+            if isinstance(self.x, (int, float)) and isinstance(other.x, (int, float)):
+                return abs(self.x - other.x)
+            return self != other
         @classmethod
         def lift(cls, *args):    return cls(*args)
 
