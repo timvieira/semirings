@@ -9,7 +9,6 @@ from semirings import (
     Why, Lineage, make_semiring, MatrixSemiring
 )
 from semirings.regex import RegularLanguage
-from wfsa import WFSA, EPSILON
 from fsa import FSA
 
 
