@@ -6,7 +6,7 @@ from semirings import (
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Wrapped,
-    Why, Lineage, make_semiring, MatrixSemiring
+    Why, Lineage, make_semiring, MatrixSemiring, Entropy
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
@@ -1094,6 +1094,13 @@ def test_axioms():
                 MinTimes.one,
                 MinTimes(+3),
                 MinTimes(2),
+            ]),
+            (Entropy, [
+                Entropy.zero,
+                Entropy.one,
+                Entropy.lift(0.3),
+                Entropy.lift(0.5),
+                Entropy.lift(0.7),
             ]),
             (Dual, [
                 Dual(0,1),

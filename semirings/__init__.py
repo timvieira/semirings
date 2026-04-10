@@ -8,6 +8,7 @@ from semirings.maxtimes import MaxTimes
 from semirings.mintimes import MinTimes
 from semirings.minplus import MinPlus
 from semirings.logval import LogVal
+from semirings.entropy import Entropy
 from semirings.float import Float
 from semirings.boolean import Boolean
 from semirings.lazysort import LazySort

@@ -72,6 +72,9 @@ class LogVal(base.Semiring):
     def is_zero(self):
         return self.ell <= float('-inf')
 
+    def __abs__(self):
+        return LogVal(True, self.ell)
+
     def __float__(self):
 #        if self.is_zero():
 #            return 0.0
@@ -137,7 +140,7 @@ class LogVal(base.Semiring):
         return c
 
     def metric(self, other):
-        return abs(float(self) - float(other))
+        return float(abs(self - other))
 
     def star(self):
         return LogVal.one / (LogVal.one - self)
