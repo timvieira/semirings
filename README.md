@@ -1,5 +1,8 @@
 # Semirings
 
+[![CI](https://github.com/timvieira/semirings/actions/workflows/ci.yml/badge.svg)](https://github.com/timvieira/semirings/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/timvieira/semirings/branch/main/graph/badge.svg)](https://codecov.io/gh/timvieira/semirings)
+
 A Python library of semirings for dynamic programming.
 
 Semirings are a powerful abstraction that enable a clean separation of concerns:
