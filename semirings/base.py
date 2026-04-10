@@ -127,7 +127,7 @@ def make_semiring(name, plus, times, zero, one, star=None, pp=None, hash=hash, m
                 other = (SemiringWrapper.one if len(other) == 0 else other[0] * other[1:])
             return SemiringWrapper(times(self.x, other.x))
         def __lt__(self, other): return self.x < other.x
-        def __eq__(self, other): return isinstance(other, self.x.__class__) and self.x == other.x
+        def __eq__(self, other): return isinstance(other, SemiringWrapper) and self.x == other.x
         def __hash__(self):      return hash(self.x)
         def __repr__(self):
             if pp is None:
