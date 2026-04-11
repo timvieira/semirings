@@ -18,8 +18,7 @@ class MaxTimes(base.Semiring):
         return hash(self.score)
 
     def metric(self, other):
-        if self.score == other.score: return 0
-        return abs(self.score - other.score)
+        return abs(self.score - other.score) / max(1, abs(self.score), abs(other.score))
 
     def __lt__(self, other):
         return isinstance(other, MaxTimes) and self.score < other.score

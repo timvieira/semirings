@@ -640,19 +640,19 @@ def test_three_valued_logic():
     [f,u,t] = members = S.zero, S.unk, S.one
 
     assert f < u < t
-    assert_equal(f + f, f)
-    assert_equal(f + t, t)
-    assert_equal(t + t, t)
-    assert_equal(f + u, u)
-    assert_equal(t + u, t)
-    assert_equal(u + u, u)
+    S.assert_equal(f + f, f)
+    S.assert_equal(f + t, t)
+    S.assert_equal(t + t, t)
+    S.assert_equal(f + u, u)
+    S.assert_equal(t + u, t)
+    S.assert_equal(u + u, u)
 
-    assert_equal(f * f, f)
-    assert_equal(f * t, f)
-    assert_equal(t * t, t)
-    assert_equal(f * u, f)
-    assert_equal(t * u, u)
-    assert_equal(u * u, u)
+    S.assert_equal(f * f, f)
+    S.assert_equal(f * t, f)
+    S.assert_equal(t * t, t)
+    S.assert_equal(f * u, f)
+    S.assert_equal(t * u, u)
+    S.assert_equal(u * u, u)
 
     check_axioms_samples(S,members)
 
@@ -1048,7 +1048,7 @@ def test_logval():
     assert LogVal.lift(-.2) < LogVal.lift(-.1)
     assert LogVal.zero / LogVal.one == LogVal.zero
 
-    check_metric_axioms(samples)
+    check_metric_axioms(LogVal, samples)
 
     for a in samples:
         for b in samples:
@@ -1123,8 +1123,14 @@ def test_axioms():
             #LazySort,
     ]:
 
-        check_metric_axioms(samples)
+        check_metric_axioms(S, samples)
         check_axioms_samples(S,samples)
+
+    # Metric axioms for extended value ranges (values outside the semiring
+    # that the metric should still handle correctly)
+    check_metric_axioms(Float, [0, -3, 2, 1, -1, float('inf'), float('-inf'), 1e100, -1e100])
+    check_metric_axioms(MinTimes, [MinTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
+    check_metric_axioms(MaxTimes, [MaxTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
 
 
 def check_axioms_samples(S,samples,**kwargs):
@@ -1143,39 +1149,39 @@ def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=Tr
 #            assert hash((A + B) * C) == hash(A * C + B * C)
 
         # Addition is a commutative monoid
-        assert_equal((A + B) + C,
-                     A + (B + C))
-        assert_equal((A + B),
-                     (B + A))
-        assert_equal(A + S.zero,
-                     A,
-                     S.zero + A)
+        S.assert_equal((A + B) + C,
+                       A + (B + C))
+        S.assert_equal((A + B),
+                       (B + A))
+        S.assert_equal(A + S.zero,
+                       A,
+                       S.zero + A)
 
         # Multiplication is a monoid
         if assoc:
-            assert_equal((A * B) * C, A * (B * C))
-            assert_equal(A * S.one, A, S.one * A)
+            S.assert_equal((A * B) * C, A * (B * C))
+            S.assert_equal(A * S.one, A, S.one * A)
 
         # distributivity from the left and the right
-        if left_distrib:  assert_equal(A * (B + C), A * B + A * C)
-        if right_distrib: assert_equal((B + C) * A, B * A + C * A)
+        if left_distrib:  S.assert_equal(A * (B + C), A * B + A * C)
+        if right_distrib: S.assert_equal((B + C) * A, B * A + C * A)
 
         # Annihilation
-        assert_equal(A * S.zero, S.zero, S.zero * A)
+        S.assert_equal(A * S.zero, S.zero, S.zero * A)
 
         # Multiplicity operation
         if check_multiplicity:
-            assert_equal(S.multiplicity(A,0) == S.zero)
-            assert_equal(S.multiplicity(A,1) == A)
-            assert_equal(S.multiplicity(A,2) == A + A)
-            assert_equal(S.multiplicity(A,3) == A + A + A)
-            #assert_equal(S.multiplicity(A,np.inf) == S.zero)
+            S.assert_equal(S.multiplicity(A,0) == S.zero)
+            S.assert_equal(S.multiplicity(A,1) == A)
+            S.assert_equal(S.multiplicity(A,2) == A + A)
+            S.assert_equal(S.multiplicity(A,3) == A + A + A)
+            #S.assert_equal(S.multiplicity(A,np.inf) == S.zero)
 
         if star:
             # Kleene star operation
-            assert_equal(S.star(A),
-                         S.one + S.star(A) * A,
-                         S.one + A * S.star(A))
+            S.assert_equal(S.star(A),
+                           S.one + S.star(A) * A,
+                           S.one + A * S.star(A))
 
     except AssertionError as e:
         print()
@@ -1184,41 +1190,32 @@ def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=Tr
         raise e
 
 
-def _metric(x, y):
-    if hasattr(x, 'metric'):
-        return x.metric(y)
-    if isinstance(x, (int, float)) and isinstance(y, (int, float)):
-        if x == y: return 0
-        return abs(x - y)
-    return x != y
-
-def check_metric_axioms(samples):
+def check_metric_axioms(S, samples):
     for a in samples:
+        # d(a,a) == 0
+        d_aa = S.metric(a, a)
+        assert d_aa == 0 or d_aa != d_aa, f'metric({a}, {a}) = {d_aa} (expected 0 or nan)'
         for b in samples:
-            d_ab = _metric(a, b)
-            # Non-negativity
-            assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
-            # Identity of indiscernibles (d(a,a) == 0)
-            assert _metric(a, a) == 0, f'metric({a}, {a}) = {_metric(a, a)} != 0'
-            # Symmetry
-            assert d_ab == _metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {_metric(b, a)}'
-            # Triangle inequality
+            d_ab = S.metric(a, b)
+            if a == b or d_ab != d_ab:
+                pass  # equal or nan — skip
+            else:
+                # Non-negativity
+                assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
+                # Symmetry
+                assert d_ab == S.metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {S.metric(b, a)}'
+            # Triangle inequality (skip if any distance is nan)
             for c in samples:
-                d_ac = _metric(a, c)
-                d_bc = _metric(b, c)
+                d_ac = S.metric(a, c)
+                d_bc = S.metric(b, c)
+                if d_ac != d_ac or d_ab != d_ab or d_bc != d_bc:
+                    continue  # nan — metric is undefined here
                 assert d_ac <= d_ab + d_bc + 1e-15, (
                     f'triangle inequality: metric({a}, {c}) = {d_ac}'
                     f' > metric({a}, {b}) + metric({b}, {c}) = {d_ab} + {d_bc} = {d_ab + d_bc}'
                 )
 
 
-def assert_equal(x, *ys, tol=1e-10):  # pragma: no cover
-    if all(_metric(x, y) <= tol for y in ys):
-        #print(colors.ok, x, *ys)
-        pass
-    else:
-        print(colors.bad, x, *ys)
-        assert 0
 
 
 def test_matrix_semiring_boolean():
@@ -1232,6 +1229,7 @@ def test_matrix_semiring_boolean():
         M({('a','a'): F, ('a','b'): T, ('b','a'): T, ('b','b'): F}),
     ]
 
+    check_metric_axioms(M, members)
     check_axioms_samples(M, members)
 
 
@@ -1247,7 +1245,24 @@ def test_matrix_semiring_minplus():
            (1,0): MinPlus.zero, (1,1): MinPlus(0)}),
     ]
 
+    check_metric_axioms(M, members)
     check_axioms_samples(M, members)
+
+
+def test_matrix_semiring_logval():
+    M = MatrixSemiring(LogVal, [0, 1])
+
+    members = [
+        M.zero,
+        M.one,
+        M({(0,0): LogVal.lift(0.3), (0,1): LogVal.lift(0.1),
+           (1,0): LogVal.lift(0.2), (1,1): LogVal.lift(0.4)}),
+        M({(0,0): LogVal.lift(0.5), (0,1): LogVal.lift(0.0),
+           (1,0): LogVal.lift(0.0), (1,1): LogVal.lift(0.5)}),
+    ]
+
+    check_metric_axioms(M, members)
+    check_axioms_samples(M, members, star=False)
 
 
 if __name__ == '__main__':

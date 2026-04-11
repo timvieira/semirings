@@ -81,6 +81,10 @@ class Semiring:
         return self
     def metric(self, other):
         return (self != other)
+    @classmethod
+    def assert_equal(cls, x, *ys, tol=1e-10):
+        if not all(x == y or cls.metric(x, y) <= tol for y in ys):
+            assert False, f'{cls.__name__}: {x} != {ys}'
 
 
 class Chart(dict):
@@ -132,7 +136,10 @@ class Wrapped(Semiring):
     def metric(self, other):
         if self.x == other.x: return 0
         if isinstance(self.x, (int, float)) and isinstance(other.x, (int, float)):
-            return abs(self.x - other.x)
+            d = abs(self.x - other.x)
+            s = max(1, abs(self.x), abs(other.x))
+            if d == float('inf'): return float('inf')
+            return d / s
         return self != other
     @classmethod
     def lift(cls, x):        return cls(x)
@@ -158,7 +165,10 @@ def make_semiring(name, plus, times, zero, one, star=None, pp=None, hash=hash, m
         def metric(self, other):
             if self.x == other.x: return 0
             if isinstance(self.x, (int, float)) and isinstance(other.x, (int, float)):
-                return abs(self.x - other.x)
+                d = abs(self.x - other.x)
+                s = max(1, abs(self.x), abs(other.x))
+                if d == float('inf'): return float('inf')
+                return d / s
             return self != other
         @classmethod
         def lift(cls, *args):    return cls(*args)

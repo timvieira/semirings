@@ -17,8 +17,7 @@ class MinTimes(base.Semiring):
         return hash(self.cost)
 
     def metric(self, other):
-        if self.cost == other.cost: return 0
-        return abs(self.cost - other.cost)
+        return abs(self.cost - other.cost) / max(1, abs(self.cost), abs(other.cost))
 
     def __lt__(self, other):
         return isinstance(other, MinTimes) and self.cost < other.cost

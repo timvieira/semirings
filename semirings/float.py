@@ -26,4 +26,4 @@ class Float(base.Semiring):
         return x*m
 
     def metric(self, other):
-        return abs(self - other)
+        return abs(self - other) / max(1, abs(self), abs(other))

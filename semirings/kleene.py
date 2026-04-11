@@ -77,6 +77,12 @@ def MatrixSemiring(base_semiring, domain):
             di, dj = item
             self.data[sigma(di), sigma(dj)] = value
 
+        def metric(self, other):
+            return max(
+                self.data[i, j].metric(other.data[i, j])
+                for i in range(n) for j in range(n)
+            )
+
         def __repr__(self):
             rows = []
             for i in range(n):

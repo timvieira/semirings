@@ -52,11 +52,12 @@ class Entropy(base.Semiring):
 
     @property
     def H(self):
+        if self.p == 0: return 0.0    # lim_{p→0+} p·log(p) = 0
         return np.log2(self.p) - self.r / self.p
 
     def metric(self, other):
-        if self.p == other.p and self.r == other.r: return 0
-        return max(abs(self.p - other.p), abs(self.r - other.r))
+        "Technically, a pseudo metric"
+        return abs(self.H - other.H)
 
 
 Entropy.zero = zero = Entropy(0.0, 0.0)

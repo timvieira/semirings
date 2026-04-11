@@ -26,6 +26,9 @@
 ## Fix `multiplicity` shadowing in `minmax`/`maxmin`
 - `minmax` and `maxmin` in `misc.py` define `multiplicity` as an instance method, shadowing the classmethod inherited from `Semiring`.
 
+## Log-space Entropy semiring
+- The current `Entropy` semiring operates in probability space `(p, r)`, which suffers from underflow for small probabilities. Implement a version that stores `(log p, log r)` (or similar) and does all arithmetic in log space, analogous to how `LogVal` relates to `Float`.
+
 ## Other semirings sitting around in other projects
 - Centralize my collection of semirings that are currently scattered across many projects.
 - Missing first- and second-order expectation semirings

@@ -155,7 +155,7 @@ Bottleneck = maxmin(float('-inf'), float('inf'))
 
 
 def dual(base):
-    class Dual:
+    class Dual(Semiring):
         def __init__(self, p, r):
             self.p = p
             self.r = r
