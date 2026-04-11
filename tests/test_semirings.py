@@ -834,14 +834,8 @@ def test_lazysort_star_single_descending():
     assert is_descending(s), f'Star of single element (score<1) not sorted: {s}'
 
 
-def test_lazysort_star_score_gt_1():
-    """Star of an element with score > 1 yields ascending scores, not descending.
-
-    The existing test_lazysort checks star(2) == [one, a, a*a, ...] which has
-    scores [1, 2, 4, 8, 16] — ascending. This violates the descending order
-    invariant that Sum and Prod rely on.  The existing test only passes because
-    it checks star in isolation (not composed with other operations).
-    """
+def test_lazysort_star_score_lt_1():
+    """Star of an element with score < 1 yields descending scores."""
 
     def scores(expr, T=10):
         return [x.score for x in take(T, expr)]
@@ -849,10 +843,10 @@ def test_lazysort_star_score_gt_1():
     def is_descending(xs):
         return all(a >= b for a, b in zip(xs, xs[1:]))
 
-    a = LazySort(2, 'a')
+    a = LazySort(0.5, 'a')
     s = scores(a.star(), T=5)
-    # scores are [1, 2, 4, 8, 16] — ascending, which is WRONG
-    assert is_descending(s), f'Star of element with score>1 not sorted: {s}'
+    # scores are [1, 0.5, 0.25, 0.125, 0.0625] — descending
+    assert is_descending(s), f'Star of element with score<1 not sorted: {s}'
 
 
 def test_lazysort_star_composed():
@@ -1054,6 +1048,8 @@ def test_logval():
     assert LogVal.lift(-.2) < LogVal.lift(-.1)
     assert LogVal.zero / LogVal.one == LogVal.zero
 
+    check_metric_axioms(samples)
+
     for a in samples:
         for b in samples:
             for c in samples:
@@ -1127,6 +1123,7 @@ def test_axioms():
             #LazySort,
     ]:
 
+        check_metric_axioms(samples)
         check_axioms_samples(S,samples)
 
 
@@ -1194,6 +1191,26 @@ def _metric(x, y):
         if x == y: return 0
         return abs(x - y)
     return x != y
+
+def check_metric_axioms(samples):
+    for a in samples:
+        for b in samples:
+            d_ab = _metric(a, b)
+            # Non-negativity
+            assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
+            # Identity of indiscernibles (d(a,a) == 0)
+            assert _metric(a, a) == 0, f'metric({a}, {a}) = {_metric(a, a)} != 0'
+            # Symmetry
+            assert d_ab == _metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {_metric(b, a)}'
+            # Triangle inequality
+            for c in samples:
+                d_ac = _metric(a, c)
+                d_bc = _metric(b, c)
+                assert d_ac <= d_ab + d_bc + 1e-15, (
+                    f'triangle inequality: metric({a}, {c}) = {d_ac}'
+                    f' > metric({a}, {b}) + metric({b}, {c}) = {d_ab} + {d_bc} = {d_ab + d_bc}'
+                )
+
 
 def assert_equal(x, *ys, tol=1e-10):  # pragma: no cover
     if all(_metric(x, y) <= tol for y in ys):

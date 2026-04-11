@@ -140,7 +140,14 @@ class LogVal(base.Semiring):
         return c
 
     def metric(self, other):
-        return float(abs(self - other))
+        # d(a,b) = |a-b| / max(1, |a|, |b|)
+        #
+        # This is the metric analogue of the standard tolerance check
+        #   |a - b| <= tol * max(1, |a|, |b|)
+        # since d(a,b) <= tol iff |a-b| <= tol * max(1, |a|, |b|).
+        d = abs(self - other)
+        s = max(abs(self), abs(other))
+        return float(d) / max(1, float(s))
 
     def star(self):
         return LogVal.one / (LogVal.one - self)
