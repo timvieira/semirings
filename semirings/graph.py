@@ -19,7 +19,10 @@ import html
 from collections import defaultdict
 from functools import cached_property
 
+import numpy as np
 from arsenal import Integerizer
+
+from semirings.kleene import kleene
 
 
 class WeightedGraph:
@@ -111,33 +114,30 @@ class WeightedGraph:
         if not isinstance(N, list):
             N = list(N)
 
+        S = self.WeightType
+
+        # Short-circuit: one node — closure is just star of its self-loop.
         if len(N) == 1:
             i = N[0]
-            return {(i, i): self.WeightType.star(A[i, i])}
+            return {(i, i): S.star(A[i, i])}
 
-        star = self.WeightType.star
-        one = self.WeightType.one
-        zero = self.WeightType.zero
+        # Build the N×N restriction as a dense ndarray, delegate to the shared
+        # Kleene–Lehmann implementation (`MatrixSemiring.star` uses the same
+        # routine), then unpack back into a sparse chart keyed by node names.
+        n = len(N)
+        M = np.empty((n, n), dtype=object)
+        for ii, i in enumerate(N):
+            for kk, k in enumerate(N):
+                M[ii, kk] = A[i, k]
 
-        # Start with only the N×N restriction of A so that cross-block edges
-        # (present in A but not in N) don't leak into the returned closure.
-        B = self.WeightType.chart()
-        for i in N:
-            for k in N:
-                B[i, k] = A[i, k]
+        M = kleene(M, S, reflexive=True)
 
-        for j in N:
-            sjj = star(B[j, j])
-            for i in N:
-                x = B[i, j] * sjj
-                if x == zero:
-                    continue
-                for k in N:
-                    B[i, k] += x * B[j, k]
-
-        for i in N:
-            B[i, i] += one
-
+        B = S.chart()
+        for ii, i in enumerate(N):
+            for kk, k in enumerate(N):
+                v = M[ii, kk]
+                if v != S.zero:
+                    B[i, k] = v
         return B
 
     @cached_property
