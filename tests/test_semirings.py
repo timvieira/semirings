@@ -25,127 +25,19 @@ def test_pow():
     MaxTimes.assert_equal(MaxTimes.lift(2, None) ** 5, MaxTimes.lift(2 ** 5, None))
 
 
-#def test_pareto():
-#
-#    def pareto(Y):
-#        return np.array([y1
-#                for y1 in Y
-#                if not any(np.all(y2 < y1) for y2 in Y if y1 is not y2)
-#               ])
-#
-#    points = np.random.uniform(size=(30,2))
-#    P = pareto(points)
-#
-#    def show(points, c='r'):
-#        if isinstance(points, Pareto): points = points.x
-#        points = np.array(points)
-#        P = pareto(points)
-#        pl.scatter(points[:,0], points[:,1], alpha=0.5, c='b')
-#        pl.scatter(P[:,0], P[:,1], c=c, alpha=0.5)
-#
-#    Pareto = make_semiring(
-#        'Pareto',
-#        lambda X,Y: pareto(list(X) + list(Y)),
-#        lambda X,Y: pareto([x + y for x in X for y in Y]),
-#        [],
-#        [np.zeros(2)],
-#    )
+# Pareto-front semiring sketch moved to experimental/pareto.py.
 
-def test_uncertainty_sets():
-    U = make_semiring(
-        'uncertainty',
-        plus = lambda X,Y: {x + y for x in X for y in Y},
-        times = lambda X,Y: {x * y for x in X for y in Y},
-        zero = {0},
-        one = {1},
-    )
-
-    x = U({1})
-    y = U({1})
-    z = U({0,1})
-
-    print(x, '+', y, '==', x + y)
-    print(y, '*', z, '==', y * z)
-    print(x, '*', z, '==', x * z)
-
-    assert ((x + y) * z).x <= (x * z + y * z).x, [(x + y) * z, x * z + y * z]
+# `test_uncertainty_sets` moved to experimental/uncertainty.py —
+# UncertaintySet(base) is a sub-distributive meta-semiring, not a semiring.
 
 
-def test_funky():
-    # The semiring requirements can be relaxed in many ways that still admit general
-    # algorithms.  For example, we can relax the requirement that * is a monoid.
-    # We can allow it to be a multi-arity operator with no structure other than
-    # closure \forall x_1, \ldots, x_K \mathcal{X}: f(X_1...X_K) \in
-    # \mathcal{X}.  But, we still want a kind of distributive property:
-    #
-    #   \forall k: \sum_{x_k} f(x_1, ..., x_k, ... x_K) = f(x_1, ..., (\sum_{x_k} x_k), ... x_K)
-    #
-    # Example from Gilea (2020) efficient outside computation
-    # https://aclanthology.org/2020.cl-4.2/
-
-    def F(x1, x2): return
-
-    S = make_semiring(
-        'Funky',
-        min,
-        lambda x,y: x + np.exp(y),
-        np.inf,
-        1,   # ???
-    )
-
-    members = list(map(S, np.linspace(-5,5,11)))
-    print(members)
-
-    check_axioms_samples(S,members,hash_=False,assoc=False,star=False)
-
-    #print([A,B,C], A * (B + C), '~~', A * B + A * C)
+# `test_funky` moved to experimental/funky.py — notes on relaxing * from a
+# binary monoid to a K-arity operator (Gilea 2020), not an actual test.
 
 
-def test_endomorphism():
-
-    S = make_semiring(
-        'Endo',
-        lambda f,g: lambda x: f(x) + g(x),
-        lambda f,g: lambda x: f(g(x)),
-        lambda _: 0,
-        lambda x: x,
-#        star = lambda x: 1 if x == 0 else K
-#        pp = lambda x: repr(dict(x)),
-#        hash = lambda x: hash(frozenset(x.items())),
-#        multiplicity = multiplicity
-    )
-
-    # the tricky thing about the members is that the need to be endomorphisms
-    # i.e., they have to preserve the monoid structure f(x) + f(y) = f(x + y).
-    #
-    # If the monoid is real addition, then f are affine functions.
-
-    members = list(map(S, [
-        lambda x: 2*x+1,
-        lambda x: x*2,
-        lambda x: x*3,
-        lambda x: 4*x,
-        lambda x: 1*x,
-        lambda _: 1,
-        lambda _: 3,
-    ]))
-
-    a,b,c,d,e,f,g = members
-
-    def eval(f):
-        return [f.x(x) for x in range(-5, 5)]
-
-    assert eval((a+b)*c) == eval(a*c+b*c)
-
-    print(eval(c*(a+b)))
-    print(eval(c*a+c*b))
-
-    assert eval(c*(a+b)) == eval(c*a+c*b)
-
-#    for A in members:
-#        for B in members:
-#            for C in members:
-#                check_axioms(S,A,B,C,star=False,hash_=False)
+# `test_endomorphism` moved to experimental/endomorphism.py — the sketch used
+# affine (not linear) members, which aren't endomorphisms of (ℝ, +), so it
+# never formed a proper semiring.
 
 
 # XXX: not the "semiring needed" for the mst to work doesn't check out as a semiring!
@@ -172,12 +64,7 @@ def test_max_capacity():
     ]
 
     for x in members:
-        print(x)
-        approx = S.star_approx(x, 100)
-        analytical = S.star(x)
-        print('  approx:    ', approx)
-        print('  analytical:', analytical)
-        S.assert_equal(approx, analytical)
+        S.assert_equal(S.star_approx(x, 100), S.star(x))
 
     check_axioms_samples(S,members)
 
@@ -200,10 +87,9 @@ def test_countK():
     )
 
     members = list(map(S, range(K+1)))
-    print(members)
 
     for x in members:
-        print(x, S.star(x), S.star_fixpoint(x))
+        S.assert_equal(S.star(x), S.star_fixpoint(x))
 
     check_axioms_samples(S,members)
 
@@ -339,11 +225,6 @@ def test_why_semiring():
     graph.edge(3,5)
     graph.edge(4,5)
 
-    if 0:
-        import pylab as pl
-        graph.draw()
-        pl.show()
-
     why = graph.closure()[0,5]   # we have a bridge at edge 2->3
     Why.assert_equal(why, Why(frozenset({
         frozenset({(0, 1), (2, 3), (4, 5), (1, 2), (3, 4)}),
@@ -372,11 +253,6 @@ def test_lineage_semiring():
     graph.edge(3,4)
     graph.edge(3,5)
     graph.edge(4,5)
-
-    if 0:
-        import pylab as pl
-        graph.draw()
-        pl.show()
 
     c = graph.closure()
 
@@ -442,11 +318,6 @@ def test_edge_bridge():
     graph.edge(3,5)
     graph.edge(4,5)
 
-    if 0:
-        import pylab as pl
-        graph.draw()
-        pl.show()
-
     bridges = graph.closure()[0,5]   # we have a bridge at edge 2->3
     Bridge.assert_equal(bridges, Bridge({(2,3)}))
 
@@ -464,11 +335,6 @@ def test_vertex_bridge():
 
     # clearly, removing 0 or 5 disconnects 0 from 5; but so will 2 or 3 (see picture above)
     b = graph.closure()[0,5]
-
-    if 0:
-        import pylab as pl
-        graph.draw()
-        pl.show()
 
     VBridge.assert_equal(b, VBridge({0,2,3,5}))
 
@@ -784,7 +650,6 @@ def test_bottleneck():
     Bottleneck.assert_equal(a * zero, zero)
     Bottleneck.assert_equal(a + zero, a)
     Bottleneck.assert_equal(b + one, one)
-    print('ok')
 
 
 def test_minmax():
@@ -874,21 +739,11 @@ def test_logval():
     ys = [log1pexp(x) for x in xs]
     zs = np.log(1+np.exp(xs))
     assert np.allclose(ys, zs, equal_nan=True)
-    if 0:
-        import pylab as pl
-        pl.plot(xs, ys, c='b', alpha=0.5, label='log1pexp')
-        pl.plot(xs, zs, c='r', alpha=0.5, linestyle=':', label='log(1+exp(x))')
-        pl.show()
 
     xs = np.linspace(-40, 0, 100)
     ys = [log1mexp(x) for x in xs]
     zs = np.log(1-np.exp(xs))
     assert np.allclose(ys, zs, equal_nan=True)
-    if 0:
-        import pylab as pl
-        pl.plot(xs, ys, c='b', alpha=0.5, label='log1mexp')
-        pl.plot(xs, zs, c='r', alpha=0.5, linestyle=':', label='log(1-exp(x))')
-        pl.show()
 
     assert LogVal.lift(.1) < LogVal.lift(.2)
     assert LogVal.lift(-.2) < LogVal.lift(-.1)
