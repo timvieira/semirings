@@ -11,7 +11,6 @@ from semirings.logval import LogVal
 from semirings.entropy import Entropy
 from semirings.float import Float
 from semirings.boolean import Boolean
-from semirings.lazysort import LazySort
 from semirings.cutsets import CutSets
 from semirings.regex import Symbol
 from semirings.interval import Interval, make_interval

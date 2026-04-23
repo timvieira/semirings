@@ -1,16 +1,17 @@
 import numpy as np
-from arsenal import colors, assert_throws
+from arsenal import assert_throws
 from arsenal.iterextras import take
 from semirings import (
     MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean,
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
-    make_set, String, ThreeValuedLogic, VBridge, Wrapped,
-    Why, Lineage, make_semiring, MatrixSemiring, Entropy,
+    make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
     check_axioms_samples, check_axioms, check_metric_axioms
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
+import re
+from arsenal import Integerizer
 
 
 class WeightedGraph:

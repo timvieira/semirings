@@ -238,7 +238,7 @@ def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=Tr
 
     except AssertionError as e:
         print()
-        print(colors.light.cyan % S.__name__,A,B,C)
+        print(S.__name__,A,B,C)
         # check semiring axioms for a subset of values
         raise e
 

@@ -36,4 +36,9 @@ dev = [
 packages = ["semirings"]
 
 [tool.ruff.lint]
-ignore = ["E701", "E702"]
+ignore = ["E701", "E702", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403", "F405", "E402"]
+"experimental/*" = ["E402"]
+"semirings/misc.py" = ["E402", "E731"]
