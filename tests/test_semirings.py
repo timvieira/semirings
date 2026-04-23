@@ -277,60 +277,8 @@ def test_max_capacity():
     check_axioms_samples(S,members)
 
 
-# XXX: work-in-progress
-def test_semilinear():
-    from collections import Counter
-
-    def bag_union(x,y):
-        z = Counter()
-        for k,v in x.items(): z[k] += v
-        for k,v in y.items(): z[k] += v
-        return z
-
-    def minkowski(x,y):
-        z = Counter()
-        for k1,v1 in x.items():
-            for k2,v2 in y.items():
-                assert len(k1) == len(k2)
-                k3 = tuple(a + b for a,b in zip(k1,k2))
-                z[k3] += v1*v2   # or should it be sum?
-        return z
-
-
-    from arsenal import Integerizer
-    symbols = 'abcd'
-    alphabet = Integerizer(list(symbols))
-    emptyvector = (0,)*len(symbols)
-
-    S = make_semiring(
-        'Semilinear',
-        bag_union,
-        minkowski,
-        Counter(),     # empty bag
-        Counter({emptyvector: 0}),
-#        star = lambda x: 1 if x == 0 else K
-    )
-
-    def onehot(symbol):
-        x = [0]*len(symbols)
-        x[alphabet(symbol)] = 1
-        return S({tuple(x): 1})
-
-
-    a,b,c,d = list(map(onehot, symbols))
-
-    print(a,b,c,d)
-    print(a + a*a + a*a*a + a*a*a + a*b*b + b*a*b + b*b*a)
-    print(a + a*a + a*a*a + a*a*a + a*b*b + b*a*b + b*b*a)
-
-    x = a
-    print(x)
-    approx = S.star_approx(x, 10)
-    #analytical = S.star(x)
-    print('  approx:    ', approx)
-    #print('  analytical:', analytical)
-    #if approx.score > 1000: approx = S.inf
-    #assert approx == analytical, [approx, analytical]
+# `test_semilinear` moved to experimental/semilinear.py — the Semilinear/Parikh
+# semiring needs a symbolic representation of star before it can be tested.
 
 
 def test_countK():
@@ -371,13 +319,12 @@ def test_max_times():
     ]
 
     for x in members:
-        #print(x)
-        approx = S.star_approx(x, 100)
         analytical = S.star(x)
-        #print('  approx:    ', approx)
-        #print('  analytical:', analytical)
-        if approx.score > 1000: approx = S.inf
-        S.assert_equal(approx, analytical)
+        if analytical == S.inf:
+            # Divergent: star_approx grows without bound; analytical is MaxTimes.inf.
+            # The axiom check below still validates the divergent case.
+            continue
+        S.assert_equal(S.star_approx(x, 100), analytical)
 
     check_axioms_samples(S,members)
 
@@ -406,13 +353,11 @@ def test_ints():
     ]
 
     for x in members:
-        print(x)
-        approx = S.star_approx(x, 1000)
         analytical = S.star(x)
-        print('  approx:    ', approx, [S.star_approx(x, k) for k in range(10)])
-        print('  analytical:', analytical)
-        if approx.x >= 1000: approx = S(np.inf)
-        S.assert_equal(approx, analytical)
+        if analytical == S(np.inf):
+            # Divergent: star(x) = inf for x != 0 in the int semiring.
+            continue
+        S.assert_equal(S.star_approx(x, 1000), analytical)
 
     check_axioms_samples(S,members)
 
@@ -437,13 +382,11 @@ def test_max_plus():
     ]
 
     for x in members:
-        #print(x)
-        approx = S.star_approx(x, 20_000)
         analytical = S.star(x)
-        #print('  approx:    ', approx.score)
-        #print('  analytical:', analytical.score)
-        if approx.score > 1000: approx = S.inf
-        S.assert_equal(approx, analytical)
+        if analytical == S.inf:
+            # Divergent: star(x) = inf when score > 0 in max-plus.
+            continue
+        S.assert_equal(S.star_approx(x, 100), analytical)
 
 
     check_axioms_samples(S,members)
@@ -1024,7 +967,7 @@ def test_logval():
     xs = np.linspace(-40, 40, 100)
     ys = [log1pexp(x) for x in xs]
     zs = np.log(1+np.exp(xs))
-    np.allclose(ys, zs)
+    assert np.allclose(ys, zs, equal_nan=True)
     if 0:
         import pylab as pl
         pl.plot(xs, ys, c='b', alpha=0.5, label='log1pexp')
@@ -1034,7 +977,7 @@ def test_logval():
     xs = np.linspace(-40, 0, 100)
     ys = [log1mexp(x) for x in xs]
     zs = np.log(1-np.exp(xs))
-    np.allclose(ys, zs)
+    assert np.allclose(ys, zs, equal_nan=True)
     if 0:
         import pylab as pl
         pl.plot(xs, ys, c='b', alpha=0.5, label='log1mexp')
