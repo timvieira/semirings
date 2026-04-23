@@ -816,9 +816,10 @@ def test_star_operations():
     MaxPlus.assert_equal(MaxPlus(1).star(), MaxPlus(np.inf))
 
 
-# TODO:Intervals are not an exact semiring because they are sub-distributive
-# rather than distributive.  Add specific tests for that!
-def todo_interval():
+# Intervals are sub-distributive rather than distributive, so
+# check_axioms_samples fails on a generic member set — the test explicitly
+# asserts that failure below, alongside positive checks on a curated triple.
+def test_interval():
 
     check_axioms(
         Interval,
