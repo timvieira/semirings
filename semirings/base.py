@@ -183,3 +183,87 @@ def make_semiring(name, plus, times, zero, one, star=None, pp=None, hash=hash, m
     SemiringWrapper.one = SemiringWrapper(one)
     SemiringWrapper.__name__ = name
     return SemiringWrapper
+
+
+
+def check_axioms_samples(S,samples,**kwargs):
+    for A in samples:
+        for B in samples:
+            for C in samples:
+                check_axioms(S,A,B,C,**kwargs)
+
+
+def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=True,assoc=True,check_multiplicity=True):
+    try:
+
+        assert A == A
+        if hash_:
+            assert hash(A) == hash(A)
+#            assert hash((A + B) * C) == hash(A * C + B * C)
+
+        # Addition is a commutative monoid
+        S.assert_equal((A + B) + C,
+                       A + (B + C))
+        S.assert_equal((A + B),
+                       (B + A))
+        S.assert_equal(A + S.zero,
+                       A,
+                       S.zero + A)
+
+        # Multiplication is a monoid
+        if assoc:
+            S.assert_equal((A * B) * C, A * (B * C))
+            S.assert_equal(A * S.one, A, S.one * A)
+
+        # distributivity from the left and the right
+        if left_distrib:  S.assert_equal(A * (B + C), A * B + A * C)
+        if right_distrib: S.assert_equal((B + C) * A, B * A + C * A)
+
+        # Annihilation
+        S.assert_equal(A * S.zero, S.zero, S.zero * A)
+
+        # Multiplicity operation
+        if check_multiplicity:
+            S.assert_equal(S.multiplicity(A,0) == S.zero)
+            S.assert_equal(S.multiplicity(A,1) == A)
+            S.assert_equal(S.multiplicity(A,2) == A + A)
+            S.assert_equal(S.multiplicity(A,3) == A + A + A)
+            #S.assert_equal(S.multiplicity(A,np.inf) == S.zero)
+
+        if star:
+            # Kleene star operation
+            S.assert_equal(S.star(A),
+                           S.one + S.star(A) * A,
+                           S.one + A * S.star(A))
+
+    except AssertionError as e:
+        print()
+        print(colors.light.cyan % S.__name__,A,B,C)
+        # check semiring axioms for a subset of values
+        raise e
+
+
+def check_metric_axioms(S, samples):
+    for a in samples:
+        # d(a,a) == 0
+        d_aa = S.metric(a, a)
+        assert d_aa == 0 or d_aa != d_aa, f'metric({a}, {a}) = {d_aa} (expected 0 or nan)'
+        for b in samples:
+            d_ab = S.metric(a, b)
+            if a == b or d_ab != d_ab:
+                pass  # equal or nan — skip
+            else:
+                # Non-negativity
+                assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
+                # Symmetry
+                assert d_ab == S.metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {S.metric(b, a)}'
+            # Triangle inequality (skip if any distance is nan)
+            for c in samples:
+                d_ac = S.metric(a, c)
+                d_bc = S.metric(b, c)
+                if d_ac != d_ac or d_ab != d_ab or d_bc != d_bc:
+                    continue  # nan — metric is undefined here
+                assert d_ac <= d_ab + d_bc + 1e-15, (
+                    f'triangle inequality: metric({a}, {c}) = {d_ac}'
+                    f' > metric({a}, {b}) + metric({b}, {c}) = {d_ab} + {d_bc} = {d_ab + d_bc}'
+                )

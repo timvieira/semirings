@@ -6,7 +6,8 @@ from semirings import (
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Wrapped,
-    Why, Lineage, make_semiring, MatrixSemiring, Entropy
+    Why, Lineage, make_semiring, MatrixSemiring, Entropy,
+    check_axioms_samples, check_axioms, check_metric_axioms
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
@@ -165,7 +166,7 @@ def test_uncertainty_sets():
 
 
 def test_funky():
-    # The semiring requires can be relaxed in many ways that still admit general
+    # The semiring requirements can be relaxed in many ways that still admit general
     # algorithms.  For example, we can relax the requirement that * is a monoid.
     # We can allow it to be a multi-arity operator with no structure other than
     # closure \forall x_1, \ldots, x_K \mathcal{X}: f(X_1...X_K) \in
@@ -180,14 +181,10 @@ def test_funky():
 
     S = make_semiring(
         'Funky',
-        lambda x,y: min(x, y),
+        min,
         lambda x,y: x + np.exp(y),
         np.inf,
         1,   # ???
-#        star = lambda x: 1 if x == 0 else K
-#        pp = lambda x: repr(dict(x)),
-#        hash = lambda x: hash(frozenset(x.items())),
-#        multiplicity = multiplicity
     )
 
     members = list(map(S, np.linspace(-5,5,11)))
@@ -199,7 +196,6 @@ def test_funky():
 
 
 def test_endomorphism():
-    from collections import Counter
 
     S = make_semiring(
         'Endo',
@@ -1131,91 +1127,6 @@ def test_axioms():
     check_metric_axioms(Float, [0, -3, 2, 1, -1, float('inf'), float('-inf'), 1e100, -1e100])
     check_metric_axioms(MinTimes, [MinTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
     check_metric_axioms(MaxTimes, [MaxTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
-
-
-def check_axioms_samples(S,samples,**kwargs):
-    for A in samples:
-        for B in samples:
-            for C in samples:
-                check_axioms(S,A,B,C,**kwargs)
-
-
-def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=True,assoc=True,check_multiplicity=True):
-    try:
-
-        assert A == A
-        if hash_:
-            assert hash(A) == hash(A)
-#            assert hash((A + B) * C) == hash(A * C + B * C)
-
-        # Addition is a commutative monoid
-        S.assert_equal((A + B) + C,
-                       A + (B + C))
-        S.assert_equal((A + B),
-                       (B + A))
-        S.assert_equal(A + S.zero,
-                       A,
-                       S.zero + A)
-
-        # Multiplication is a monoid
-        if assoc:
-            S.assert_equal((A * B) * C, A * (B * C))
-            S.assert_equal(A * S.one, A, S.one * A)
-
-        # distributivity from the left and the right
-        if left_distrib:  S.assert_equal(A * (B + C), A * B + A * C)
-        if right_distrib: S.assert_equal((B + C) * A, B * A + C * A)
-
-        # Annihilation
-        S.assert_equal(A * S.zero, S.zero, S.zero * A)
-
-        # Multiplicity operation
-        if check_multiplicity:
-            S.assert_equal(S.multiplicity(A,0) == S.zero)
-            S.assert_equal(S.multiplicity(A,1) == A)
-            S.assert_equal(S.multiplicity(A,2) == A + A)
-            S.assert_equal(S.multiplicity(A,3) == A + A + A)
-            #S.assert_equal(S.multiplicity(A,np.inf) == S.zero)
-
-        if star:
-            # Kleene star operation
-            S.assert_equal(S.star(A),
-                           S.one + S.star(A) * A,
-                           S.one + A * S.star(A))
-
-    except AssertionError as e:
-        print()
-        print(colors.light.cyan % S.__name__,A,B,C)
-        # check semiring axioms for a subset of values
-        raise e
-
-
-def check_metric_axioms(S, samples):
-    for a in samples:
-        # d(a,a) == 0
-        d_aa = S.metric(a, a)
-        assert d_aa == 0 or d_aa != d_aa, f'metric({a}, {a}) = {d_aa} (expected 0 or nan)'
-        for b in samples:
-            d_ab = S.metric(a, b)
-            if a == b or d_ab != d_ab:
-                pass  # equal or nan — skip
-            else:
-                # Non-negativity
-                assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
-                # Symmetry
-                assert d_ab == S.metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {S.metric(b, a)}'
-            # Triangle inequality (skip if any distance is nan)
-            for c in samples:
-                d_ac = S.metric(a, c)
-                d_bc = S.metric(b, c)
-                if d_ac != d_ac or d_ab != d_ab or d_bc != d_bc:
-                    continue  # nan — metric is undefined here
-                assert d_ac <= d_ab + d_bc + 1e-15, (
-                    f'triangle inequality: metric({a}, {c}) = {d_ac}'
-                    f' > metric({a}, {b}) + metric({b}, {c}) = {d_ab} + {d_bc} = {d_ab + d_bc}'
-                )
-
-
 
 
 def test_matrix_semiring_boolean():
