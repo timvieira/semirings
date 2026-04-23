@@ -13,6 +13,21 @@ from semirings.regex import RegularLanguage
 from fsa import FSA
 
 
+# 8-edge graph used by the provenance / bridge tests (Why, Lineage, Bridge,
+# VBridge). Has a bridge at 2→3 and two parallel paths 0→1→2 / 0→1.5→2.
+PROVENANCE_EDGES = [
+    (0, 1), (2, 3), (1, 2), (0, 1.5), (1.5, 2),
+    (3, 4), (3, 5), (4, 5),
+]
+
+
+def provenance_graph(WeightType):
+    g = WeightedGraph(WeightType)
+    for i, j in PROVENANCE_EDGES:
+        g.edge(i, j)
+    return g
+
+
 def test_pow():
     assert Float.lift(0, None) ** 0 == 1
     assert Float.lift(1, None) ** 10 == 1
@@ -215,16 +230,7 @@ def test_why_semiring():
     ]
     check_axioms_samples(Why,members)
 
-    graph = WeightedGraph(Why)
-    graph.edge(0,1)
-    graph.edge(2,3)
-    graph.edge(1,2)
-    graph.edge(0,1.5)
-    graph.edge(1.5,2)
-    graph.edge(3,4)
-    graph.edge(3,5)
-    graph.edge(4,5)
-
+    graph = provenance_graph(Why)
     why = graph.closure()[0,5]   # we have a bridge at edge 2->3
     Why.assert_equal(why, Why(frozenset({
         frozenset({(0, 1), (2, 3), (4, 5), (1, 2), (3, 4)}),
@@ -244,16 +250,7 @@ def test_lineage_semiring():
 
     check_axioms_samples(Lineage,members)
 
-    graph = WeightedGraph(Lineage)
-    graph.edge(0,1)
-    graph.edge(2,3)
-    graph.edge(1,2)
-    graph.edge(0,1.5)
-    graph.edge(1.5,2)
-    graph.edge(3,4)
-    graph.edge(3,5)
-    graph.edge(4,5)
-
+    graph = provenance_graph(Lineage)
     c = graph.closure()
 
     # we use all the edges for 0->5 paths
@@ -308,31 +305,13 @@ def test_edge_bridge():
 
     check_axioms_samples(S,members)
 
-    graph = WeightedGraph(Bridge)
-    graph.edge(0,1)
-    graph.edge(2,3)
-    graph.edge(1,2)
-    graph.edge(0,1.5)
-    graph.edge(1.5,2)
-    graph.edge(3,4)
-    graph.edge(3,5)
-    graph.edge(4,5)
-
+    graph = provenance_graph(Bridge)
     bridges = graph.closure()[0,5]   # we have a bridge at edge 2->3
     Bridge.assert_equal(bridges, Bridge({(2,3)}))
 
 
 def test_vertex_bridge():
-    graph = WeightedGraph(VBridge)
-    graph.edge(0,1)
-    graph.edge(2,3)
-    graph.edge(1,2)
-    graph.edge(0,1.5)
-    graph.edge(1.5,2)
-    graph.edge(3,4)
-    graph.edge(3,5)
-    graph.edge(4,5)
-
+    graph = provenance_graph(VBridge)
     # clearly, removing 0 or 5 disconnects 0 from 5; but so will 2 or 3 (see picture above)
     b = graph.closure()[0,5]
 
