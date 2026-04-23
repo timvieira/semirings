@@ -61,6 +61,15 @@ class Semiring:
             curr = self.one + self * prev
             if prev == curr: return curr
             prev = curr
+    def star_doubling(self):
+        # star(x) = (1 + x) star(x²); doubles the number of series terms per step.
+        p = self.one
+        x = self
+        while True:
+            curr = p + p * x
+            if curr == p: return curr
+            p = curr
+            x = x * x
     star = star_fixpoint
     @classmethod
     def approx_zero(cls, x):

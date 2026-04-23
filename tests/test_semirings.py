@@ -115,9 +115,9 @@ def test_pow():
     assert Float.lift(0.5, None) ** 12 == 0.5**12
 
     assert (MaxPlus.lift(0.5, None) ** 12).score == 0.5 * 12
-    assert (MaxPlus.lift(2, None) ** 0) == MaxPlus.one
+    MaxPlus.assert_equal(MaxPlus.lift(2, None) ** 0, MaxPlus.one)
 
-    assert MaxTimes.lift(2, None) ** 5 == MaxTimes.lift(2 ** 5, None)
+    MaxTimes.assert_equal(MaxTimes.lift(2, None) ** 5, MaxTimes.lift(2 ** 5, None))
 
 
 #def test_pareto():
@@ -272,7 +272,7 @@ def test_max_capacity():
         analytical = S.star(x)
         print('  approx:    ', approx)
         print('  analytical:', analytical)
-        assert approx == analytical, [approx, analytical]
+        S.assert_equal(approx, analytical)
 
     check_axioms_samples(S,members)
 
@@ -377,7 +377,7 @@ def test_max_times():
         #print('  approx:    ', approx)
         #print('  analytical:', analytical)
         if approx.score > 1000: approx = S.inf
-        assert approx == analytical, [approx, analytical]
+        S.assert_equal(approx, analytical)
 
     check_axioms_samples(S,members)
 
@@ -412,7 +412,7 @@ def test_ints():
         print('  approx:    ', approx, [S.star_approx(x, k) for k in range(10)])
         print('  analytical:', analytical)
         if approx.x >= 1000: approx = S(np.inf)
-        assert approx == analytical, [approx, analytical]
+        S.assert_equal(approx, analytical)
 
     check_axioms_samples(S,members)
 
@@ -443,7 +443,7 @@ def test_max_plus():
         #print('  approx:    ', approx.score)
         #print('  analytical:', analytical.score)
         if approx.score > 1000: approx = S.inf
-        assert approx == analytical, [approx.score, analytical.score]
+        S.assert_equal(approx, analytical)
 
 
     check_axioms_samples(S,members)
@@ -467,7 +467,7 @@ def test_security():
     members = list(map(S, K))
 
     for x in members:
-        assert S.star(x) == S.star_fixpoint(x)
+        S.assert_equal(S.star(x), S.star_fixpoint(x))
 
     check_axioms_samples(S,members)
 
@@ -497,12 +497,12 @@ def test_why_semiring():
         pl.show()
 
     why = graph.closure()[0,5]   # we have a bridge at edge 2->3
-    assert why == Why(frozenset({
+    Why.assert_equal(why, Why(frozenset({
         frozenset({(0, 1), (2, 3), (4, 5), (1, 2), (3, 4)}),
         frozenset({(0, 1.5), (2, 3), (4, 5), (3, 4), (1.5, 2)}),
         frozenset({(0, 1), (1, 2), (2, 3), (3, 5)}),
         frozenset({(0, 1.5), (2, 3), (1.5, 2), (3, 5)})
-    }))
+    })))
 
 
 def test_lineage_semiring():
@@ -534,31 +534,31 @@ def test_lineage_semiring():
 
     # we use all the edges for 0->5 paths
     lineage = c[0,5]
-    assert lineage == Lineage(frozenset(graph.E))
+    Lineage.assert_equal(lineage, Lineage(frozenset(graph.E)))
 
     # we only use four edges for 0->2 paths
     lineage = c[0,2]
-    assert lineage == Lineage(frozenset({(0, 1), (1, 2), (1.5, 2), (0, 1.5)}))
+    Lineage.assert_equal(lineage, Lineage(frozenset({(0, 1), (1, 2), (1.5, 2), (0, 1.5)})))
 
 
 def test_cut_sets():
     S = CutSets
 
     # minimality
-    assert CutSets( {(2,3)}, {(1,3), (2,3)} ) == CutSets( {(2,3)} )
+    CutSets.assert_equal(CutSets({(2,3)}, {(1,3), (2,3)}), CutSets({(2,3)}))
 
     a = CutSets( {(2,3)}, {(1,3), (2,4)} )
     b = CutSets( {(1,3), (2,3)}, {(1,3), (2,4)} )
     c = CutSets( {(1,3)} )
-    assert a * b == CutSets({(2,3)}, {(1,3), (2,4)})
-    assert a + b == CutSets({(1,3), (2,3)}, {(1,3), (2,4)})
+    CutSets.assert_equal(a * b, CutSets({(2,3)}, {(1,3), (2,4)}))
+    CutSets.assert_equal(a + b, CutSets({(1,3), (2,3)}, {(1,3), (2,4)}))
 
     one = CutSets.one; zero = CutSets.zero
-    assert a * one == a
-    assert a * zero == zero
-    assert a * (b + c) == a * b + a * c
-    assert a * a == a
-    assert a + a == a
+    CutSets.assert_equal(a * one, a)
+    CutSets.assert_equal(a * zero, zero)
+    CutSets.assert_equal(a * (b + c), a * b + a * c)
+    CutSets.assert_equal(a * a, a)
+    CutSets.assert_equal(a + a, a)
 
     members = [
         CutSets({(2,3)}, {(1,3), (2,4)}),
@@ -600,7 +600,7 @@ def test_edge_bridge():
         pl.show()
 
     bridges = graph.closure()[0,5]   # we have a bridge at edge 2->3
-    assert bridges == Bridge({(2,3)})
+    Bridge.assert_equal(bridges, Bridge({(2,3)}))
 
 
 def test_vertex_bridge():
@@ -622,7 +622,7 @@ def test_vertex_bridge():
         graph.draw()
         pl.show()
 
-    assert b == VBridge({0,2,3,5})
+    VBridge.assert_equal(b, VBridge({0,2,3,5}))
 
 
 def test_division():
@@ -678,8 +678,8 @@ def test_string():
         S("abab"),
     ]
 
-    assert S("aaa") + S("aab") == S("aa")
-    assert S("aaa") + S("") == S("")
+    S.assert_equal(S("aaa") + S("aab"), S("aa"))
+    S.assert_equal(S("aaa") + S(""), S(""))
 
     check_axioms_samples(S,members,right_distrib=False)
 
@@ -921,21 +921,21 @@ def test_bottleneck():
     c = Bottleneck(3)
     d = Bottleneck(4)
 
-    assert a.star_approx(10) == a.star()
-    assert a.star_fixpoint() == a.star()
+    Bottleneck.assert_equal(a.star_approx(10), a.star())
+    Bottleneck.assert_equal(a.star_fixpoint(), a.star())
 
-    assert Bottleneck.sum([]) == zero
-    assert Bottleneck.sum([a,b,c,d]) == a + b + c + d
-    assert Bottleneck.product([]) == one
-    assert Bottleneck.product([a,b,c,d]) == a * b * c * d
+    Bottleneck.assert_equal(Bottleneck.sum([]), zero)
+    Bottleneck.assert_equal(Bottleneck.sum([a,b,c,d]), a + b + c + d)
+    Bottleneck.assert_equal(Bottleneck.product([]), one)
+    Bottleneck.assert_equal(Bottleneck.product([a,b,c,d]), a * b * c * d)
 
-    assert (a * b + b * c + d * c) == c
-    assert (a + b) == b
-    assert (a * b) == a
-    assert a * one == a
-    assert a * zero == zero
-    assert a + zero == a
-    assert b + one == one
+    Bottleneck.assert_equal(a * b + b * c + d * c, c)
+    Bottleneck.assert_equal(a + b, b)
+    Bottleneck.assert_equal(a * b, a)
+    Bottleneck.assert_equal(a * one, a)
+    Bottleneck.assert_equal(a * zero, zero)
+    Bottleneck.assert_equal(a + zero, a)
+    Bottleneck.assert_equal(b + one, one)
     print('ok')
 
 
@@ -962,10 +962,10 @@ def test_convex_hull():
 
 
 def test_star_operations():
-    assert Float.star(1) == np.inf
-    assert MinTimes(-1).star() == MinTimes(-np.inf)
-    assert MinPlus(-1).star() == MinPlus(-np.inf)
-    assert MaxPlus(1).star() == MaxPlus(np.inf)
+    Float.assert_equal(Float.star(1), np.inf)
+    MinTimes.assert_equal(MinTimes(-1).star(), MinTimes(-np.inf))
+    MinPlus.assert_equal(MinPlus(-1).star(), MinPlus(-np.inf))
+    MaxPlus.assert_equal(MaxPlus(1).star(), MaxPlus(np.inf))
 
 
 # TODO:Intervals are not an exact semiring because they are sub-distributive
@@ -989,18 +989,18 @@ def todo_interval():
             star=False
         )
 
-    assert Interval(0,1) | Interval(3,4) == Interval(0,4)
+    Interval.assert_equal(Interval(0,1) | Interval(3,4), Interval(0,4))
 
-    assert Interval.tightest([]) == Interval.loose
-    assert Interval.tightest([Interval(0,1)]) == Interval(0,1)
-    assert Interval.tightest([Interval(0,1), Interval(-1,0.5)]) == Interval(0,0.5)
+    Interval.assert_equal(Interval.tightest([]), Interval.loose)
+    Interval.assert_equal(Interval.tightest([Interval(0,1)]), Interval(0,1))
+    Interval.assert_equal(Interval.tightest([Interval(0,1), Interval(-1,0.5)]), Interval(0,0.5))
 
-    assert Interval.union([]) == Interval.loose
-    assert Interval.union([Interval(0,1)]) == Interval(0,1)
-    assert Interval.union([Interval(0,1), Interval(-1,0.5)]) == Interval(-1,1)
+    Interval.assert_equal(Interval.union([]), Interval.loose)
+    Interval.assert_equal(Interval.union([Interval(0,1)]), Interval(0,1))
+    Interval.assert_equal(Interval.union([Interval(0,1), Interval(-1,0.5)]), Interval(-1,1))
 
     # TODO: should this be some special empty set?
-    assert Interval(0,1) & Interval(3,4) == Interval(3,1)
+    Interval.assert_equal(Interval(0,1) & Interval(3,4), Interval(3,1))
 
 
 def test_logval():
@@ -1043,7 +1043,7 @@ def test_logval():
 
     assert LogVal.lift(.1) < LogVal.lift(.2)
     assert LogVal.lift(-.2) < LogVal.lift(-.1)
-    assert LogVal.zero / LogVal.one == LogVal.zero
+    LogVal.assert_equal(LogVal.zero / LogVal.one, LogVal.zero)
 
     check_metric_axioms(LogVal, samples)
 
@@ -1175,6 +1175,70 @@ def test_matrix_semiring_logval():
 
     check_metric_axioms(M, members)
     check_axioms_samples(M, members, star=False)
+
+
+def test_star_doubling():
+    # star_doubling must agree with star_fixpoint wherever the series converges.
+    # Use each semiring's own metric via assert_equal rather than ad-hoc tolerances.
+
+    def agree(x, *, expect=None, tol=1e-10):
+        # Fixpoint's convergence check is itself metric-based, so its precision
+        # is bounded by the semiring's own equality tolerance; callers can loosen
+        # `tol` for floating-point semirings where that matters.
+        S = type(x)
+        fp = x.star_fixpoint()
+        db = x.star_doubling()
+        if expect is None:
+            S.assert_equal(fp, db, tol=tol)
+        else:
+            S.assert_equal(expect, fp, db, tol=tol)
+        return fp, db
+
+    # LogVal: geometric series 1/(1-x), converges when x < 1.
+    # Fixpoint convergence is ~1e-5 relative due to np.allclose in LogVal.__eq__.
+    for v in [0.0, 0.1, 0.5, 0.9]:
+        agree(LogVal.lift(v), expect=LogVal.lift(1/(1 - v)), tol=1e-3)
+
+    # Boolean: idempotent; star(x) = one.
+    for x in [Boolean.zero, Boolean.one]:
+        agree(x, expect=Boolean.one)
+
+    # MaxPlus: tropical; star converges when score <= 0.
+    for v in [-5.0, -1.0, -0.1, 0.0]:
+        agree(MaxPlus(v), expect=MaxPlus.one)
+
+    # MinPlus: tropical; star converges when cost >= 0.
+    for v in [0.0, 0.1, 1.0, 5.0]:
+        agree(MinPlus(v), expect=MinPlus.one)
+
+    # Łukasiewicz: + = max, so one absorbs — star(x) = one.
+    for v in [0.0, 0.25, 0.5, 0.9, 1.0]:
+        agree(Lukasiewicz(v), expect=Lukasiewicz.one)
+
+    # Three-valued logic: + = max, * = min; star(x) = one.
+    for x in [ThreeValuedLogic.zero, ThreeValuedLogic.unk, ThreeValuedLogic.one]:
+        agree(x, expect=ThreeValuedLogic.one)
+
+    # Why-provenance: idempotent set-of-sets.
+    for x in [Why.zero, Why.one, Why.lift('a'), Why.lift('a') + Why.lift('b')]:
+        agree(x)
+
+    # Lineage: idempotent set semiring.
+    for x in [Lineage.zero, Lineage.one, Lineage.lift('a'), Lineage.lift('a') + Lineage.lift('b')]:
+        agree(x)
+
+    # Bridge: intersection/union set semiring, idempotent.
+    for x in [Bridge.zero, Bridge.one, Bridge.lift((0,1)), Bridge.lift((0,1)) * Bridge.lift((1,2))]:
+        agree(x)
+
+    # Division (gcd/lcm): gcd(1, _) = 1, so star(x) = Division(1) = one.
+    for v in [0, 1, 2, 6, 15]:
+        agree(Division(v), expect=Division.one)
+
+    # Nilpotent matrix over LogVal: star(N) = I + N + N² terminates finitely.
+    M = MatrixSemiring(LogVal, range(3))
+    N = M({(0,1): LogVal.lift(0.5), (1,2): LogVal.lift(0.25), (0,2): LogVal.lift(0.1)})
+    M.assert_equal(N.star_fixpoint(), N.star_doubling(), tol=1e-3)
 
 
 if __name__ == '__main__':
