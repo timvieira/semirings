@@ -990,10 +990,7 @@ def test_logval():
 
     check_metric_axioms(LogVal, samples)
 
-    for a in samples:
-        for b in samples:
-            for c in samples:
-                check_axioms(LogVal, a, b, c)
+    check_axioms_samples(LogVal, samples)
 
 
 def test_axioms():

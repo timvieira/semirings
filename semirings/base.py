@@ -195,61 +195,69 @@ def make_semiring(name, plus, times, zero, one, star=None, pp=None, hash=hash, m
 
 
 
-def check_axioms_samples(S,samples,**kwargs):
-    for A in samples:
-        for B in samples:
-            for C in samples:
-                check_axioms(S,A,B,C,**kwargs)
+def _check_axioms_unary(S, A, hash_=True, check_multiplicity=True, star=True,
+                        assoc=True, **_):
+    assert A == A
+    if hash_:
+        assert hash(A) == hash(A)
+    S.assert_equal(A + S.zero, A, S.zero + A)
+    if assoc:
+        S.assert_equal(A * S.one, A, S.one * A)
+    S.assert_equal(A * S.zero, S.zero, S.zero * A)
+    if check_multiplicity:
+        S.assert_equal(S.multiplicity(A, 0), S.zero)
+        S.assert_equal(S.multiplicity(A, 1), A)
+        S.assert_equal(S.multiplicity(A, 2), A + A)
+        S.assert_equal(S.multiplicity(A, 3), A + A + A)
+    if star:
+        S.assert_equal(S.star(A),
+                       S.one + S.star(A) * A,
+                       S.one + A * S.star(A))
 
 
-def check_axioms(S,A,B,C,star=True,left_distrib=True,right_distrib=True,hash_=True,assoc=True,check_multiplicity=True):
+def _check_axioms_binary(S, A, B, **_):
+    S.assert_equal(A + B, B + A)
+
+
+def _check_axioms_ternary(S, A, B, C, left_distrib=True, right_distrib=True,
+                         assoc=True, **_):
+    S.assert_equal((A + B) + C, A + (B + C))
+    if assoc:
+        S.assert_equal((A * B) * C, A * (B * C))
+    if left_distrib:
+        S.assert_equal(A * (B + C), A * B + A * C)
+    if right_distrib:
+        S.assert_equal((B + C) * A, B * A + C * A)
+
+
+def check_axioms_samples(S, samples, **kwargs):
+    # Hoist unary/binary axioms out of the triple loop: O(n) + O(n²) + O(n³)
+    # calls instead of O(n³) with redundant re-checks of the cheaper axioms.
     try:
-
-        assert A == A
-        if hash_:
-            assert hash(A) == hash(A)
-#            assert hash((A + B) * C) == hash(A * C + B * C)
-
-        # Addition is a commutative monoid
-        S.assert_equal((A + B) + C,
-                       A + (B + C))
-        S.assert_equal((A + B),
-                       (B + A))
-        S.assert_equal(A + S.zero,
-                       A,
-                       S.zero + A)
-
-        # Multiplication is a monoid
-        if assoc:
-            S.assert_equal((A * B) * C, A * (B * C))
-            S.assert_equal(A * S.one, A, S.one * A)
-
-        # distributivity from the left and the right
-        if left_distrib:  S.assert_equal(A * (B + C), A * B + A * C)
-        if right_distrib: S.assert_equal((B + C) * A, B * A + C * A)
-
-        # Annihilation
-        S.assert_equal(A * S.zero, S.zero, S.zero * A)
-
-        # Multiplicity operation
-        if check_multiplicity:
-            S.assert_equal(S.multiplicity(A,0) == S.zero)
-            S.assert_equal(S.multiplicity(A,1) == A)
-            S.assert_equal(S.multiplicity(A,2) == A + A)
-            S.assert_equal(S.multiplicity(A,3) == A + A + A)
-            #S.assert_equal(S.multiplicity(A,np.inf) == S.zero)
-
-        if star:
-            # Kleene star operation
-            S.assert_equal(S.star(A),
-                           S.one + S.star(A) * A,
-                           S.one + A * S.star(A))
-
-    except AssertionError as e:
+        for A in samples:
+            _check_axioms_unary(S, A, **kwargs)
+        for A in samples:
+            for B in samples:
+                _check_axioms_binary(S, A, B, **kwargs)
+        for A in samples:
+            for B in samples:
+                for C in samples:
+                    _check_axioms_ternary(S, A, B, C, **kwargs)
+    except AssertionError:
         print()
-        print(S.__name__,A,B,C)
-        # check semiring axioms for a subset of values
-        raise e
+        print(S.__name__, 'samples:', samples)
+        raise
+
+
+def check_axioms(S, A, B, C, **kwargs):
+    try:
+        _check_axioms_unary(S, A, **kwargs)
+        _check_axioms_binary(S, A, B, **kwargs)
+        _check_axioms_ternary(S, A, B, C, **kwargs)
+    except AssertionError:
+        print()
+        print(S.__name__, A, B, C)
+        raise
 
 
 def check_metric_axioms(S, samples):
