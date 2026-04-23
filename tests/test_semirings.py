@@ -1086,6 +1086,27 @@ def test_star_doubling():
     M.assert_equal(N.star_fixpoint(), N.star_doubling(), tol=1e-3)
 
 
+def test_weighted_graph_transpose():
+    g = WeightedGraph(Float)
+    g[0, 1] = 0.3
+    g[1, 2] = 0.5
+    g[2, 0] = 0.7
+
+    T = g.transpose()
+    assert set(T.E) == {(1, 0), (2, 1), (0, 2)}
+    for (i, j), w in g.E.items():
+        Float.assert_equal(T[j, i], w)
+
+    # Transpose-of-transpose recovers the original.
+    TT = T.transpose()
+    assert set(TT.E) == set(g.E)
+    for k in g.E:
+        Float.assert_equal(TT.E[k], g.E[k])
+
+    # Lazy `incoming` matches a direct reverse-adjacency build.
+    assert dict(g.incoming) == {1: {0}, 2: {1}, 0: {2}}
+
+
 def test_weighted_graph_scc():
     # SCC-based closure should agree with the naive Floyd–Warshall reference.
     # Build a graph with two cycles connected by a bridge — nontrivial SCCs.

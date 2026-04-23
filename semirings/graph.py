@@ -31,7 +31,6 @@ class WeightedGraph:
     def __init__(self, WeightType):
         self.WeightType = WeightType
         self.N = set()
-        self.incoming = defaultdict(set)
         self.outgoing = defaultdict(set)
         self.E = WeightType.chart()
 
@@ -48,7 +47,6 @@ class WeightedGraph:
         self.N.add(j)
         if value != self.WeightType.zero:
             self.E[i, j] = value
-            self.incoming[j].add(i)
             self.outgoing[i].add(j)
         return self
 
@@ -58,8 +56,26 @@ class WeightedGraph:
         self.N.add(j)
         self.E[i, j] += w if w is not None else self.WeightType.lift((i, j))
         if self.E[i, j] != self.WeightType.zero:
-            self.incoming[j].add(i)
             self.outgoing[i].add(j)
+
+    @cached_property
+    def incoming(self):
+        """Reverse adjacency, derived from `E` on first access.
+
+        Read-only: mutating the graph after reading `incoming` makes the cache
+        stale (same contract as `blocks`, `Blocks`, `buckets`).
+        """
+        inc = defaultdict(set)
+        for (i, j) in self.E:
+            inc[j].add(i)
+        return inc
+
+    def transpose(self):
+        """Return a new WeightedGraph with every edge reversed."""
+        T = WeightedGraph(self.WeightType)
+        for (i, j), w in self.E.items():
+            T[j, i] = w
+        return T
 
     def closure(self):
         """Reflexive, transitive closure as a new WeightedGraph."""
