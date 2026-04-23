@@ -747,7 +747,40 @@ AXIOM_CASES = [
     (_Set, _set_members, {}),
     (_MinMax, list(map(_MinMax, "abcd")) + [_MinMax.zero, _MinMax.one], {}),
     (_MaxMin, list(map(_MaxMin, "abcd")), {}),
+    (MaxTimes, [
+        MaxTimes.zero, MaxTimes.one,
+        MaxTimes(0.5), MaxTimes(0.1), MaxTimes(0),
+    ], {}),
+    (Bottleneck, [
+        Bottleneck.zero, Bottleneck.one,
+        Bottleneck(1), Bottleneck(2), Bottleneck(3), Bottleneck(4),
+    ], {}),
+    (Why, [Why.zero, Why.one, Why.lift('a'), Why.lift('b'), Why.lift('c')], {}),
+    (Lineage, [
+        Lineage.zero, Lineage.one,
+        Lineage.lift('a'), Lineage.lift('b'), Lineage.lift('c'),
+    ], {}),
+    (Bridge, [
+        Bridge.zero, Bridge.one,
+        Bridge({(2,3), (1,3), (2,4)}),
+        Bridge({(1,3), (2,3)}),
+        Bridge({(1,3), (2,4)}),
+        Bridge.lift((1,3)),
+    ], {}),
+    (CutSets, [
+        CutSets.zero, CutSets.one,
+        CutSets({(2,3)}, {(1,3), (2,4)}),
+        CutSets({(1,3), (2,3)}, {(1,3), (2,4)}),
+        CutSets({(1,3)}),
+    ], {}),
+    (ThreeValuedLogic, [ThreeValuedLogic.zero, ThreeValuedLogic.unk, ThreeValuedLogic.one], {}),
+    (String, [
+        String.zero, String.one,
+        String("a"), String("aa"), String("aaa"),
+        String("b"), String("aaab"), String("abab"),
+    ], {'right_distrib': False}),
     # Symbol, LazySort: regex equality is insufficient / lazy.
+    # VBridge: same axiom shape as Bridge; tested via test_vertex_bridge.
 ]
 
 
