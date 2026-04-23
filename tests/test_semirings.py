@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from arsenal import assert_throws
 from arsenal.iterextras import take
 from semirings import (
@@ -318,12 +319,6 @@ def test_vertex_bridge():
     VBridge.assert_equal(b, VBridge({0,2,3,5}))
 
 
-def test_division():
-    S = Division
-    members = [Division(x) for x in range(10)]
-    check_axioms_samples(S,members)
-
-
 def test_three_valued_logic():
     S = ThreeValuedLogic
 
@@ -343,17 +338,6 @@ def test_three_valued_logic():
     S.assert_equal(f * u, f)
     S.assert_equal(t * u, u)
     S.assert_equal(u * u, u)
-
-    check_axioms_samples(S,members)
-
-
-def test_sets():
-    from arsenal.maths.combinatorics import powerset
-
-    universe = frozenset('abc')
-    S = make_set(universe, frozenset())
-
-    members = [S(frozenset(x)) for x in powerset(universe)]
 
     check_axioms_samples(S,members)
 
@@ -631,18 +615,6 @@ def test_bottleneck():
     Bottleneck.assert_equal(b + one, one)
 
 
-def test_minmax():
-    S = minmax(None, "")
-    members = list(map(S, "abcd")) + [S.zero, S.one]
-    check_axioms_samples(S,members)
-
-
-def test_maxmin():
-    S = maxmin(None, "")
-    members = list(map(S, "abcd"))
-    check_axioms_samples(S,members)
-
-
 def test_convex_hull():
     check_axioms(
         ConvexHull,
@@ -736,78 +708,71 @@ def test_logval():
     check_axioms_samples(LogVal, samples)
 
 
-def test_axioms():
+def _build_set_semiring():
+    from arsenal.maths.combinatorics import powerset
+    universe = frozenset('abc')
+    Set = make_set(universe, frozenset())
+    members = [Set(frozenset(x)) for x in powerset(universe)]
+    return Set, members
 
-    for S,samples in [
-            (Lukasiewicz, [
-                Lukasiewicz.zero,
-                Lukasiewicz.one,
-                Lukasiewicz(0.5),
-                Lukasiewicz(0.25),
-                Lukasiewicz(0.75),
-            ]),
-            (MinPlus, [
-                MinPlus(float('+inf')),
-                MinPlus.zero,
-                MinPlus.one,
-                MinPlus(-3),
-                MinPlus(+3),
-                MinPlus(2),
-                MinPlus(-1)
-            ]),
-            (MaxPlus, [
-                MaxPlus(float('-inf')),
-                MaxPlus.zero,
-                MaxPlus.one,
-                MaxPlus(-3),
-                MaxPlus(+3),
-                MaxPlus(2),
-                MaxPlus(-1),
-            ]),
-            (MinTimes, [
-                MinTimes(float('+inf')),
-                MinTimes.zero,
-                MinTimes.one,
-                MinTimes(+3),
-                MinTimes(2),
-            ]),
-            (Entropy, [
-                Entropy.zero,
-                Entropy.one,
-                Entropy.lift(0.3),
-                Entropy.lift(0.5),
-                Entropy.lift(0.7),
-            ]),
-            (Dual, [
-                Dual(0,1),
-                Dual(-3,2),
-                Dual(2,4),
-                Dual(-1,-1),
-            ]),
-            (Float, [
-                0, -3, 2,
-                1, -1,
-            ]),
-            (Boolean, [
-                Boolean(True),
-                Boolean(False)
-            ]),
-            (RegularLanguage, [
-                RegularLanguage.lift('a'),
-                RegularLanguage.lift('b'),
-                RegularLanguage.lift('c'),
-                RegularLanguage.zero,
-                RegularLanguage.one,
-            ])
-            #Symbol,   # equality operation of regex is insufficient
-            #LazySort,
-    ]:
 
-        check_metric_axioms(S, samples)
-        check_axioms_samples(S,samples)
+_MinMax = minmax(None, "")
+_MaxMin = maxmin(None, "")
+_Set, _set_members = _build_set_semiring()
 
-    # Metric axioms for extended value ranges (values outside the semiring
-    # that the metric should still handle correctly)
+
+# (semiring, samples, kwargs) — each entry becomes test_axioms[<id>] under pytest.
+AXIOM_CASES = [
+    (Lukasiewicz, [
+        Lukasiewicz.zero, Lukasiewicz.one,
+        Lukasiewicz(0.5), Lukasiewicz(0.25), Lukasiewicz(0.75),
+    ], {}),
+    (MinPlus, [
+        MinPlus(float('+inf')), MinPlus.zero, MinPlus.one,
+        MinPlus(-3), MinPlus(+3), MinPlus(2), MinPlus(-1),
+    ], {}),
+    (MaxPlus, [
+        MaxPlus(float('-inf')), MaxPlus.zero, MaxPlus.one,
+        MaxPlus(-3), MaxPlus(+3), MaxPlus(2), MaxPlus(-1),
+    ], {}),
+    (MinTimes, [
+        MinTimes(float('+inf')), MinTimes.zero, MinTimes.one,
+        MinTimes(+3), MinTimes(2),
+    ], {}),
+    (Entropy, [
+        Entropy.zero, Entropy.one,
+        Entropy.lift(0.3), Entropy.lift(0.5), Entropy.lift(0.7),
+    ], {}),
+    (Dual, [Dual(0,1), Dual(-3,2), Dual(2,4), Dual(-1,-1)], {}),
+    (Float, [0, -3, 2, 1, -1], {}),
+    (Boolean, [Boolean(True), Boolean(False)], {}),
+    (RegularLanguage, [
+        RegularLanguage.lift('a'),
+        RegularLanguage.lift('b'),
+        RegularLanguage.lift('c'),
+        RegularLanguage.zero,
+        RegularLanguage.one,
+    ], {}),
+    (Division, [Division(x) for x in range(10)], {}),
+    (_Set, _set_members, {}),
+    (_MinMax, list(map(_MinMax, "abcd")) + [_MinMax.zero, _MinMax.one], {}),
+    (_MaxMin, list(map(_MaxMin, "abcd")), {}),
+    # Symbol, LazySort: regex equality is insufficient / lazy.
+]
+
+
+@pytest.mark.parametrize(
+    'S,samples,kwargs',
+    AXIOM_CASES,
+    ids=[case[0].__name__ for case in AXIOM_CASES],
+)
+def test_axioms(S, samples, kwargs):
+    check_metric_axioms(S, samples)
+    check_axioms_samples(S, samples, **kwargs)
+
+
+def test_metric_extended_ranges():
+    # Metric should handle values outside the semiring's normal range.
     check_metric_axioms(Float, [0, -3, 2, 1, -1, float('inf'), float('-inf'), 1e100, -1e100])
     check_metric_axioms(MinTimes, [MinTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
     check_metric_axioms(MaxTimes, [MaxTimes(x) for x in [0, 1, 3, float('inf'), 1e100]])
