@@ -17,6 +17,7 @@ from semirings.cutsets import CutSets
 from semirings.regex import Symbol
 from semirings.interval import Interval, make_interval
 from semirings.kleene import MatrixSemiring
+from semirings.graph import WeightedGraph, scc_decomposition
 from semirings.misc import *
 
 

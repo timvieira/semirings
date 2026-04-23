@@ -6,106 +6,11 @@ from semirings import (
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
-    check_axioms_samples, check_axioms, check_metric_axioms
+    check_axioms_samples, check_axioms, check_metric_axioms,
+    WeightedGraph,
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
-import re
-from arsenal import Integerizer
-
-
-class WeightedGraph:
-
-    def __init__(self, WeightType):
-        self.N = set()
-        self.WeightType = WeightType
-        self.E = WeightType.chart()
-
-    def __iter__(self):
-        return iter(self.E)
-
-    def incoming(self, j):  # TODO: use slice notation
-        return {I: self.E[I,J] for I,J in self if J == j}
-
-    def outgoing(self, i):  # TODO: use slice notation
-        return {J: self.E[I,J] for I,J in self if I == i}
-
-    def edge(self, i, j, w=None):
-        self.N.add(i); self.N.add(j)
-        self.E[i,j] += w if w is not None else self.WeightType.lift((i,j))
-
-    # TODO: return another WeightedGraph that corresponds to the closure
-    def __getitem__(self, item):
-        i,j = item
-        return self.E[i,j]
-
-    def __setitem__(self, item, value):
-        i,j = item
-        self.N.add(i); self.N.add(j)
-        self.E[i,j] = value
-        return self
-
-    def closure(self):
-        # initialization
-        A = self.E
-        old = A.copy()
-        for j in self.N:
-            new = self.WeightType.chart()
-            sjj = self.WeightType.star(old[j,j])
-            for i in self.N:
-                for k in self.N:
-                    new[i,k] = old[i,k] + old[i,j] * sjj * old[j,k]
-            old, new = new, old   # swap to repurpose space
-        # post processing fix-up: add the identity matrix
-        for i in self.N: old[i,i] += self.WeightType.one
-        c = WeightedGraph(self.WeightType)
-        c.E.update(old)
-        for i,j in c.E: c.N.add(i); c.N.add(j)
-        return c
-
-    def _repr_svg_(self):
-        return self.graphviz()._repr_image_svg_xml()
-
-    def graphviz(self):
-        from graphviz import Digraph
-
-        name = Integerizer()
-
-        g = Digraph(
-            node_attr=dict(
-                fontname='Monospace',
-                fontsize='9',
-                height='0', width='0',
-                margin="0.055,0.042",
-                penwidth='0.15',
-                shape='box',
-                style='rounded',
-            ),
-            edge_attr=dict(
-                penwidth='0.5',
-                arrowhead='vee',
-                arrowsize='0.5',
-                fontname='Monospace',
-                fontsize='8'
-            ),
-        )
-
-        def escape(x):
-            if isinstance(x, frozenset): x = set(x) or {}
-            if isinstance(x, float): x = f'{x:.2g}'
-            x = str(x)
-            # remove any ANSI color codes
-            x = re.sub(r'\033\[.*?m(.*?)\033\[0m', lambda m: '`%s`' % m.group(1), x)
-            return x
-
-        for i,j in self.E:
-            if self.E[i,j] == self.WeightType.zero: continue
-            g.edge(str(name(i)), str(name(j)), label=escape(self.E[i,j]))
-
-        for i in self.N:
-            g.node(str(name(i)), label=escape(i))
-
-        return g
 
 
 def test_pow():
@@ -1179,6 +1084,40 @@ def test_star_doubling():
     M = MatrixSemiring(LogVal, range(3))
     N = M({(0,1): LogVal.lift(0.5), (1,2): LogVal.lift(0.25), (0,2): LogVal.lift(0.1)})
     M.assert_equal(N.star_fixpoint(), N.star_doubling(), tol=1e-3)
+
+
+def test_weighted_graph_scc():
+    # SCC-based closure should agree with the naive Floyd–Warshall reference.
+    # Build a graph with two cycles connected by a bridge — nontrivial SCCs.
+    g = WeightedGraph(Float)
+    for (i, j) in [(0,1), (1,0),               # SCC {0,1}
+                   (1,2),                       # bridge
+                   (2,3), (3,4), (4,2),         # SCC {2,3,4}
+                   (4,5)]:                      # sink {5}
+        g[i, j] = 0.3
+
+    scc_based = g.closure_scc_based()
+    reference = g.closure_reference()
+    for key in set(scc_based) | set(reference):
+        Float.assert_equal(scc_based.get(key, Float.zero),
+                           reference.get(key, Float.zero),
+                           tol=1e-9)
+
+    # solve_left: x = xA + b with b = e_0 should recover the 0-th row of star(A).
+    b = Float.chart(); b[0] = Float.one
+    sol = g.solve_left(b)
+    for j in g.N:
+        Float.assert_equal(sol.get(j, Float.zero),
+                           scc_based.get((0, j), Float.zero),
+                           tol=1e-9)
+
+    # solve_right: x = Ax + b with b = e_5 should recover the 5-th column.
+    b = Float.chart(); b[5] = Float.one
+    sol = g.solve_right(b)
+    for i in g.N:
+        Float.assert_equal(sol.get(i, Float.zero),
+                           scc_based.get((i, 5), Float.zero),
+                           tol=1e-9)
 
 
 if __name__ == '__main__':
