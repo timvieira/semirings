@@ -29,6 +29,16 @@ def provenance_graph(WeightType):
     return g
 
 
+def assert_star_approx_matches(S, members, T, *, inf=None):
+    """Verify S.star_approx(x, T) == S.star(x) for all members; skip divergent
+    cases where the analytical star equals the supplied `inf` value."""
+    for x in members:
+        analytical = S.star(x)
+        if inf is not None and analytical == inf:
+            continue
+        S.assert_equal(S.star_approx(x, T), analytical)
+
+
 def test_pow():
     assert Float.lift(0, None) ** 0 == 1
     assert Float.lift(1, None) ** 10 == 1
@@ -125,14 +135,7 @@ def test_max_times():
         S(0),
     ]
 
-    for x in members:
-        analytical = S.star(x)
-        if analytical == S.inf:
-            # Divergent: star_approx grows without bound; analytical is MaxTimes.inf.
-            # The axiom check below still validates the divergent case.
-            continue
-        S.assert_equal(S.star_approx(x, 100), analytical)
-
+    assert_star_approx_matches(S, members, 100, inf=S.inf)
     check_axioms_samples(S,members)
 
 
@@ -159,13 +162,7 @@ def test_ints():
 #        S(np.inf),
     ]
 
-    for x in members:
-        analytical = S.star(x)
-        if analytical == S(np.inf):
-            # Divergent: star(x) = inf for x != 0 in the int semiring.
-            continue
-        S.assert_equal(S.star_approx(x, 1000), analytical)
-
+    assert_star_approx_matches(S, members, 1000, inf=S(np.inf))
     check_axioms_samples(S,members)
 
 
@@ -188,14 +185,7 @@ def test_max_plus():
         S(-1),
     ]
 
-    for x in members:
-        analytical = S.star(x)
-        if analytical == S.inf:
-            # Divergent: star(x) = inf when score > 0 in max-plus.
-            continue
-        S.assert_equal(S.star_approx(x, 100), analytical)
-
-
+    assert_star_approx_matches(S, members, 100, inf=S.inf)
     check_axioms_samples(S,members)
 
 
