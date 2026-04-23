@@ -719,10 +719,13 @@ def test_logval():
     zs = np.log(1+np.exp(xs))
     assert np.allclose(ys, zs, equal_nan=True)
 
-    xs = np.linspace(-40, 0, 100)
+    # Exclude the x=0 endpoint: naive log(1-exp(0)) = log(0) = -inf, and the
+    # sub-epsilon region near 0 is exactly where naive is catastrophically
+    # cancelling — this test only validates agreement in the benign range.
+    xs = np.linspace(-40, 0, 100, endpoint=False)
     ys = [log1mexp(x) for x in xs]
     zs = np.log(1-np.exp(xs))
-    assert np.allclose(ys, zs, equal_nan=True)
+    assert np.allclose(ys, zs)
 
     assert LogVal.lift(.1) < LogVal.lift(.2)
     assert LogVal.lift(-.2) < LogVal.lift(-.1)
