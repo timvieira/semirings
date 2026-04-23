@@ -261,25 +261,40 @@ def check_axioms(S, A, B, C, **kwargs):
 
 
 def check_metric_axioms(S, samples):
-    for a in samples:
-        # d(a,a) == 0
-        d_aa = S.metric(a, a)
-        assert d_aa == 0 or d_aa != d_aa, f'metric({a}, {a}) = {d_aa} (expected 0 or nan)'
-        for b in samples:
-            d_ab = S.metric(a, b)
-            if a == b or d_ab != d_ab:
-                pass  # equal or nan — skip
-            else:
-                # Non-negativity
-                assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
-                # Symmetry
-                assert d_ab == S.metric(b, a), f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {S.metric(b, a)}'
-            # Triangle inequality (skip if any distance is nan)
-            for c in samples:
-                d_ac = S.metric(a, c)
-                d_bc = S.metric(b, c)
-                if d_ac != d_ac or d_ab != d_ab or d_bc != d_bc:
-                    continue  # nan — metric is undefined here
+    # Cache all pairwise distances once: n² metric() calls instead of the
+    # n³ + n² that the naive nested-loop form would do (each ternary iteration
+    # re-computed d_ab and d_ac).
+    samples = list(samples)
+    D = [[S.metric(a, b) for b in samples] for a in samples]
+    isnan = lambda v: v != v
+
+    # Unary: d(x, x) == 0  (or nan if undefined for that value)
+    for i, a in enumerate(samples):
+        d_ii = D[i][i]
+        assert d_ii == 0 or isnan(d_ii), f'metric({a}, {a}) = {d_ii} (expected 0 or nan)'
+
+    # Binary: non-negativity and symmetry
+    for i, a in enumerate(samples):
+        for j, b in enumerate(samples):
+            d_ab = D[i][j]
+            if a == b or isnan(d_ab):
+                continue
+            assert d_ab >= 0, f'metric({a}, {b}) = {d_ab} < 0'
+            assert d_ab == D[j][i], (
+                f'metric({a}, {b}) = {d_ab} != metric({b}, {a}) = {D[j][i]}'
+            )
+
+    # Ternary: triangle inequality d(a,c) <= d(a,b) + d(b,c)
+    for i, a in enumerate(samples):
+        for j, b in enumerate(samples):
+            d_ab = D[i][j]
+            if isnan(d_ab):
+                continue
+            for k, c in enumerate(samples):
+                d_ac = D[i][k]
+                d_bc = D[j][k]
+                if isnan(d_ac) or isnan(d_bc):
+                    continue
                 assert d_ac <= d_ab + d_bc + 1e-15, (
                     f'triangle inequality: metric({a}, {c}) = {d_ac}'
                     f' > metric({a}, {b}) + metric({b}, {c}) = {d_ab} + {d_bc} = {d_ab + d_bc}'
