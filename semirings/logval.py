@@ -93,8 +93,10 @@ class LogVal(base.Semiring):
         if not isinstance(b, LogVal):
             return NotImplemented
         c = LogVal.lift(0.0)
-#        if self.is_zero() or b.is_zero():
-#            return c
+        if self.is_zero() or b.is_zero():
+            # Absorbing zero: without this, 0 * (+inf) = -inf + inf = NaN,
+            # which breaks semiring axioms once star introduces infinities.
+            return c
         c.pos = self.pos == b.pos
         c.ell = self.ell + b.ell
         return c

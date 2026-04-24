@@ -950,6 +950,16 @@ _MaxMin = maxmin(None, "")
 _Set, _set_members = _build_set_semiring()
 
 
+# Expectation parameterized by a non-commutative base semiring (regex).
+# Tests that the jet multiplication rule p1*r2 + r1*p2 (not p2*r1) is correct.
+from semirings import make_expectation
+_ExpRL = make_expectation(RegularLanguage, RegularLanguage)
+_ExpRL.__name__ = 'ExpectationRL'
+_a_rl = RegularLanguage.lift('a')
+_b_rl = RegularLanguage.lift('b')
+_c_rl = RegularLanguage.lift('c')
+
+
 # (semiring, samples, kwargs) — each entry becomes test_axioms[<id>] under pytest.
 AXIOM_CASES = [
     (Lukasiewicz, [
@@ -986,7 +996,7 @@ AXIOM_CASES = [
         Expectation(LogVal.lift(0.3), LogVal.lift(0.1)),
         Expectation(LogVal.lift(0.5), LogVal.lift(0.2)),
         Expectation(LogVal.lift(0.7), LogVal.lift(0.4)),
-    ], {'star': False, 'hash_': False}),
+    ], {'hash_': False}),
     (SecondOrderExpectation, [
         SecondOrderExpectation.zero, SecondOrderExpectation.one,
         SecondOrderExpectation(
@@ -999,7 +1009,13 @@ AXIOM_CASES = [
             LogValVector({'y': LogVal.lift(0.3)}),
             LogValVector({'x': LogVal.lift(0.1), 'y': LogVal.lift(0.4)}),
         ),
-    ], {'star': False, 'hash_': False}),
+    ], {'hash_': False}),
+    (_ExpRL, [
+        _ExpRL.zero, _ExpRL.one,
+        _ExpRL(_a_rl, _b_rl),
+        _ExpRL(_a_rl, RegularLanguage.one),
+        _ExpRL(_c_rl, _a_rl),
+    ], {'hash_': False}),
     (RegularLanguage, [
         RegularLanguage.lift('a'),
         RegularLanguage.lift('b'),
