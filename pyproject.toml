@@ -20,6 +20,7 @@ dependencies = [
     "numpy",
     "scipy",
     "sympy",
+    "nltk",
     "arsenal @ git+https://github.com/timvieira/arsenal",
     "wfsa @ git+https://github.com/timvieira/wfsa",
     "fsa @ git+https://github.com/timvieira/fsa",
