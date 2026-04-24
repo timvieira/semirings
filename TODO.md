@@ -19,10 +19,6 @@
 ## Extract shared backpointer logic
 - MaxPlus, MinPlus, MaxTimes, MinTimes all duplicate nearly identical backpointer tracking (`d` argument). Extract into a reusable base class.
 
-## Add type annotations
-- Add type hints to the `Semiring` base class at minimum
-- Consider making `Semiring` generic: `Semiring[T]`
-
 ## Fix `multiplicity` shadowing in `minmax`/`maxmin`
 - `minmax` and `maxmin` in `misc.py` define `multiplicity` as an instance method, shadowing the classmethod inherited from `Semiring`.
 

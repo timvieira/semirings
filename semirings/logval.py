@@ -84,6 +84,8 @@ class LogVal(base.Semiring):
             return -float(exp(self.ell))
 
     def __mul__(self, b):
+        if not isinstance(b, LogVal):
+            return NotImplemented
         c = LogVal.lift(0.0)
 #        if self.is_zero() or b.is_zero():
 #            return c
