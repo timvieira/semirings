@@ -29,6 +29,19 @@
 - Centralize my collection of semirings that are currently scattered across many projects.
 - Missing first- and second-order expectation semirings
 
+## Axiom-test coverage for FreeExpr and sampling semirings
+- `FreeExpr` is a magma — syntactic tree equality fails commutativity/associativity
+  of `+` and `*` — but it is equal-up-to-semiring-axioms under the evaluation
+  homomorphism `weight(·) : FreeExpr → ℝ`. Add a `metric` to `FreeExpr` using
+  `abs(weight(self) - weight(other))` so axiom-test `assert_equal` succeeds via
+  the tolerance path. First fix `weight()` to handle `FreeExpr.zero` / `FreeExpr.one`
+  (their `.args` is empty) and to return `+inf` when `Star(x)` with `weight(x) >= 1`.
+- Sampling semirings (`Expon`, lazy `Sample`, SWOR `Sample`) are `FreeExpr + an
+  evaluation pass`. They already carry the accumulated weight in `self.w`. Add
+  `metric` using `abs(self.w - other.w)` and add to AXIOM_CASES with appropriate
+  kwargs (eager/SWOR: `star=False`; lazy: full). Use `w` in `[0, 1)` for samples
+  so `Star` doesn't diverge.
+
 ## Fix `Float.__init__`
 - `Float.__init__()` takes no arguments, so `Float(3)` raises `TypeError`. The README examples don't work.
 
