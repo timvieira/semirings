@@ -17,6 +17,7 @@ from semirings.count import Count
 from semirings.bag import Bag
 from semirings.util import derivation, post_process
 from semirings.vector import make_vector
+from semirings.free import FreeExpr, Sum, Prod, Star, backprop, toposort, weight, maxtimes, lazysort as free_lazysort, sample as free_sample
 from semirings.cutsets import CutSets
 from semirings.regex import Symbol
 from semirings.interval import Interval, make_interval
