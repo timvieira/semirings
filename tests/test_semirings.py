@@ -3,7 +3,7 @@ import pytest
 from arsenal import assert_throws
 from arsenal.iterextras import take
 from semirings import (
-    MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean,
+    MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean, Count,
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
@@ -736,6 +736,7 @@ AXIOM_CASES = [
     (Dual, [Dual(0,1), Dual(-3,2), Dual(2,4), Dual(-1,-1)], {}),
     (Float, [0, -3, 2, 1, -1], {}),
     (Boolean, [Boolean(True), Boolean(False)], {}),
+    (Count, [Count.zero, Count.one, Count(2), Count(3), Count(5)], {'star': False}),
     (RegularLanguage, [
         RegularLanguage.lift('a'),
         RegularLanguage.lift('b'),
