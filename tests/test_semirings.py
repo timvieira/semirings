@@ -4,11 +4,11 @@ from arsenal import assert_throws
 from arsenal.iterextras import take
 from semirings import (
     MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean, Count, Bag,
-    Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
+    Bottleneck, minmax, maxmin, LogVal, LogValVector, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
     check_axioms_samples, check_axioms, check_metric_axioms,
-    WeightedGraph,
+    WeightedGraph, Expectation, SecondOrderExpectation,
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
@@ -698,6 +698,245 @@ def test_logval():
     check_axioms_samples(LogVal, samples)
 
 
+def test_logval_new_methods():
+    # __neg__, to_real, lower (Stage 2 LogVal merge)
+    a = LogVal.lift(3.5)
+    b = LogVal.lift(-2.0)
+    assert a.to_real() == 3.5
+    assert b.to_real() == -2.0
+    assert a.lower() == 3.5
+    assert float(-a) == -3.5
+    assert float(-b) == 2.0
+    # double-negate round-trip
+    assert float(-(-a)) == 3.5
+
+
+def test_count():
+    from semirings import Count
+    assert Count(3) + Count(4) == Count(7)
+    assert Count(3) * Count(4) == Count(12)
+    assert Count(5) - Count(2) == Count(3)
+    assert Count.zero + Count(5) == Count(5)
+    assert Count.one * Count(5) == Count(5)
+    assert Count.zero * Count(5) == Count.zero
+    assert float(Count(7)) == 7
+    assert Count(3).metric(Count(5)) == 2 / 5
+
+
+def test_bag():
+    from semirings import Bag
+    a = Bag({'x': 2, 'y': 3})
+    b = Bag({'y': 1, 'z': 4})
+    # addition merges with multiplicity sum
+    assert (a + b) == Bag({'x': 2, 'y': 4, 'z': 4})
+    # multiplication: Cartesian product with tagging
+    c = Bag({'p': 2}) * Bag({'q': 3})
+    assert c == Bag({('p', 'q'): 6})
+    # identity and absorbing element
+    assert a + Bag.zero == a
+    # multiplicative identity fails (tags wrap), which is why axiom tests
+    # for Bag set assoc=False
+    wrapped = a * Bag.one
+    assert wrapped != a  # tagged, not original
+    assert wrapped == Bag({('x', ()): 2, ('y', ()): 3})
+
+
+def test_free_expr():
+    from semirings import FreeExpr, weight, maxtimes, backprop
+    a = FreeExpr(1, 'a')
+    b = FreeExpr(2, 'b')
+    c = FreeExpr(3, 'c')
+    root = a * (b + c)
+
+    # weight distributes: 1 * (2 + 3) = 5
+    assert weight(root) == 5
+
+    # maxtimes picks the largest-weight product chain: a * c (weight 1*3=3)
+    best = maxtimes(root)
+    assert weight(best) == 3
+
+    # backprop assigns adjoint 1 to root and propagates
+    adj = backprop(root)
+    assert adj[root] == FreeExpr.one
+    # adjoints for leaves are nonzero
+    assert adj[a] is not FreeExpr.zero
+    assert adj[b] is not FreeExpr.zero
+
+
+def test_vector_module():
+    # Vector is a module over a semiring R, not a semiring itself.
+    # Operations: V+V, V*R, R*V, V/R, V@V, V.is_zero.
+    from semirings import make_vector, MinPlus
+    V = make_vector(MinPlus)
+    v = V({'a': MinPlus(1), 'b': MinPlus(2)})
+    w = V({'b': MinPlus(3), 'c': MinPlus(4)})
+
+    # addition is pointwise
+    s = v + w
+    assert s['a'] == MinPlus(1)
+    assert s['b'] == MinPlus(min(2, 3))   # MinPlus add is min
+    assert s['c'] == MinPlus(4)
+
+    # scalar multiplication (right + left)
+    u = v * MinPlus(1)
+    assert u['a'] == MinPlus(2)   # MinPlus multiplication is +
+    assert u['b'] == MinPlus(3)
+
+    # dot product
+    dot = v @ V({'a': MinPlus(10), 'b': MinPlus(20)})
+    assert dot == MinPlus(min(1 + 10, 2 + 20))
+
+    # equality: same keys and values → equal; different multiplicities → not
+    assert V({'a': MinPlus(1)}) == V({'a': MinPlus(1)})
+    assert V({'a': MinPlus(1)}) != V({'a': MinPlus(2)})
+
+
+def test_vector_metric():
+    # Vectors aren't semirings, but they do have a metric. Check the four
+    # metric axioms on a set of samples.
+    from semirings import make_vector, LogVal
+    V = make_vector(LogVal)
+    samples = [
+        V(),
+        V({'a': LogVal.lift(0.5)}),
+        V({'a': LogVal.lift(0.5), 'b': LogVal.lift(0.2)}),
+        V({'a': LogVal.lift(1.0)}),
+        V({'b': LogVal.lift(0.3)}),
+    ]
+    check_metric_axioms(V, samples)
+
+
+def test_expectation_first_order():
+    from semirings import Expectation
+    e1 = Expectation(LogVal.lift(0.3), LogVal.lift(0.1))
+    e2 = Expectation(LogVal.lift(0.5), LogVal.lift(0.2))
+
+    # addition is coefficientwise
+    s = e1 + e2
+    assert abs(s.p.to_real() - 0.8) < 1e-10
+    assert abs(s.r.to_real() - 0.3) < 1e-10
+
+    # multiplication: (p1 p2, p1 r2 + p2 r1) — dual-number product
+    m = e1 * e2
+    assert abs(m.p.to_real() - 0.15) < 1e-10
+    assert abs(m.r.to_real() - (0.3 * 0.2 + 0.5 * 0.1)) < 1e-10
+
+    # multiplicative identity
+    one_times = Expectation.one * e1
+    assert abs(one_times.p.to_real() - 0.3) < 1e-10
+    assert abs(one_times.r.to_real() - 0.1) < 1e-10
+
+    # zero absorbs
+    zero_times = Expectation.zero * e1
+    assert zero_times.p.is_zero()
+
+
+def test_second_order_expectation():
+    from semirings import SecondOrderExpectation, LogValVector
+    # build a (p, r, s, t) and multiply by one — should equal self component-wise
+    e = SecondOrderExpectation(
+        LogVal.lift(0.5),
+        LogVal.lift(0.1),
+        LogValVector({'x': LogVal.lift(0.3)}),
+        LogValVector({'x': LogVal.lift(0.7)}),
+    )
+    m = e * SecondOrderExpectation.one
+    assert abs(m.p.to_real() - 0.5) < 1e-10
+    assert abs(m.r.to_real() - 0.1) < 1e-10
+
+    # zero is absorbing for the `p` component
+    z = e * SecondOrderExpectation.zero
+    assert z.p.is_zero()
+
+    # addition is component-wise
+    e2 = SecondOrderExpectation(
+        LogVal.lift(0.25),
+        LogVal.lift(0.05),
+        LogValVector({'x': LogVal.lift(0.1)}),
+        LogValVector({'x': LogVal.lift(0.2)}),
+    )
+    s = e + e2
+    assert abs(s.p.to_real() - 0.75) < 1e-10
+    assert abs(s.r.to_real() - 0.15) < 1e-10
+
+
+def test_sampling_lazy():
+    from semirings.sampling.lazy2 import Sample
+    np.random.seed(0)
+    s = Sample(0.5, 'a') + Sample(0.3, 'b')
+    # one call to sample() returns a (weight, derivation) pair
+    w, d = s.sample()
+    assert w in (0.5, 0.3)
+    assert d in ('a', 'b')
+
+    # iter yields an infinite stream — take 50 and check both outcomes show up
+    it = iter(s)
+    outcomes = {next(it)[1] for _ in range(50)}
+    assert 'a' in outcomes
+    assert 'b' in outcomes
+
+
+def test_sampling_eager():
+    from semirings.sampling.eager import Expon
+    np.random.seed(0)
+    e = Expon(2.0, 'a')
+    # .value is a (X, d) tuple drawn at construction — reproducible via seed
+    x, d = e.value
+    assert d == 'a'
+    assert x > 0   # exponential variate is positive
+
+    # sum takes the min of child values
+    e1 = Expon(2.0, 'a')
+    e2 = Expon(1.0, 'b')
+    summed = e1 + e2
+    assert summed.value == min(e1.value, e2.value)
+
+
+def test_sampling_swor():
+    from semirings.sampling.swor import Sample
+    np.random.seed(0)
+    s = Sample(0.5, 'a')
+    # sample() builds a LazySort element carrying an exponential variate
+    lz = s.sample()
+    assert lz is not None
+
+
+def test_symbolic():
+    from semirings import Symbolic
+    # lift(weight, identifier) -> SymPy Symbol(identifier)
+    x = Symbolic.lift(0, 'x')
+    y = Symbolic.lift(0, 'y')
+    # SymPy handles the algebra from here
+    assert str(x + y) == 'x + y'
+    assert str(x * y) in ('x*y', 'y*x')
+    assert Symbolic.zero == 0
+    assert Symbolic.one == 1
+
+
+def test_util_derivation():
+    # `derivation` walks a .d-backpointer chain into an NLTK Tree.
+    # Build a minimal carrier type.
+    from semirings.util import derivation, post_process
+
+    class N:
+        def __init__(self, d):
+            self.d = d
+
+    # Leaf: .d is not a list/tuple, returned as-is
+    assert derivation(N('a')) == 'a'
+
+    # Node: .d is (body, label) pair where label/body are themselves N's
+    leaf = N('a')
+    label = N('L')
+    node = N((leaf, label))
+    tree = derivation(node)
+    assert str(tree) == '(L a)'
+
+    # post_process walks raw (body, label) tuples the same way
+    assert str(post_process(('a', 'L'))) == '(L a)'
+    assert post_process('leaf') == 'leaf'
+
+
 def _build_set_semiring():
     from arsenal.maths.combinatorics import powerset
     universe = frozenset('abc')
@@ -742,6 +981,25 @@ AXIOM_CASES = [
         Bag.zero, Bag.one,
         Bag({'x': 2}), Bag({'y': 3}), Bag({'x': 1, 'y': 1}),
     ], {'assoc': False, 'star': False}),
+    (Expectation, [
+        Expectation.zero, Expectation.one,
+        Expectation(LogVal.lift(0.3), LogVal.lift(0.1)),
+        Expectation(LogVal.lift(0.5), LogVal.lift(0.2)),
+        Expectation(LogVal.lift(0.7), LogVal.lift(0.4)),
+    ], {'star': False, 'hash_': False}),
+    (SecondOrderExpectation, [
+        SecondOrderExpectation.zero, SecondOrderExpectation.one,
+        SecondOrderExpectation(
+            LogVal.lift(0.3), LogVal.lift(0.1),
+            LogValVector({'x': LogVal.lift(0.5)}),
+            LogValVector({'x': LogVal.lift(0.2)}),
+        ),
+        SecondOrderExpectation(
+            LogVal.lift(0.5), LogVal.lift(0.2),
+            LogValVector({'y': LogVal.lift(0.3)}),
+            LogValVector({'x': LogVal.lift(0.1), 'y': LogVal.lift(0.4)}),
+        ),
+    ], {'star': False, 'hash_': False}),
     (RegularLanguage, [
         RegularLanguage.lift('a'),
         RegularLanguage.lift('b'),

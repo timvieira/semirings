@@ -34,6 +34,18 @@ def make_expectation(P, R):
             p2, r2 = y.p, y.r
             return Expectation(p1 * p2, p1 * r2 + p2 * r1)
 
+        def __eq__(self, other):
+            if not isinstance(other, Expectation):
+                return NotImplemented
+            return self.p == other.p and self.r == other.r
+
+        __hash__ = None  # structural __eq__ with float-ish values → not hashable
+
+        def metric(self, other):
+            mp = self.p.metric(other.p) if hasattr(self.p, 'metric') else (0.0 if self.p == other.p else 1.0)
+            mr = self.r.metric(other.r) if hasattr(self.r, 'metric') else (0.0 if self.r == other.r else 1.0)
+            return max(mp, mr)
+
     Expectation.zero = Expectation(P.zero, R.zero)
     Expectation.one = Expectation(P.one, R.zero)
     return Expectation
@@ -75,6 +87,22 @@ class SecondOrderExpectation(Semiring):
             p1 * r2 + p2 * r1,
             p1 * s2 + p2 * s1,
             p1 * t2 + p2 * t1 + r1 * s2 + r2 * s1,
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SecondOrderExpectation):
+            return NotImplemented
+        return (self.p == other.p and self.r == other.r
+                and self.s == other.s and self.t == other.t)
+
+    __hash__ = None  # structural __eq__ with float-ish values → not hashable
+
+    def metric(self, other):
+        return max(
+            self.p.metric(other.p),
+            self.r.metric(other.r),
+            self.s.metric(other.s),
+            self.t.metric(other.t),
         )
 
 

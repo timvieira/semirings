@@ -20,8 +20,8 @@ class Count(Semiring):
     def __lt__(self, other):  return self.x < other.x
     def __repr__(self):       return f'Count({self.x})'
 
-    def lower(self):  return self.x
-    __float__ = lower
+    def lower(self):    return self.x
+    def __float__(self): return float(self.x)
 
     def metric(self, other):
         d = abs(self.x - other.x)

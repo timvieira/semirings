@@ -79,6 +79,30 @@ def make_vector(R):
         def __iter__(self):
             return iter(self.x)
 
+        def __eq__(self, other):
+            if not isinstance(other, Vector):
+                return NotImplemented
+            keys = set(self.x) | set(other.x)
+            for k in keys:
+                if self[k] != other[k]:
+                    return False
+            return True
+
+        __hash__ = None  # structural __eq__ with float-ish values → not hashable
+
+        def metric(self, other):
+            keys = set(self.x) | set(other.x)
+            if not keys:
+                return 0.0
+            ms = []
+            for k in keys:
+                a, b = self[k], other[k]
+                if hasattr(a, 'metric'):
+                    ms.append(a.metric(b))
+                else:
+                    ms.append(0.0 if a == b else 1.0)
+            return max(ms)
+
     Vector.zero = Vector()
 
     return Vector
