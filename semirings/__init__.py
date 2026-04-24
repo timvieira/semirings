@@ -9,7 +9,8 @@ from semirings.maxplus import MaxPlus
 from semirings.maxtimes import MaxTimes
 from semirings.mintimes import MinTimes
 from semirings.minplus import MinPlus
-from semirings.logval import LogVal
+from semirings.logval import LogVal, LogValVector
+from semirings.expectation import Expectation, SecondOrderExpectation, make_expectation
 from semirings.entropy import Entropy
 from semirings.float import Float
 from semirings.boolean import Boolean

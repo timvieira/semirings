@@ -164,3 +164,7 @@ class LogVal(base.Semiring):
 
 LogVal.zero = LogVal.lift(0.0)
 LogVal.one = LogVal.lift(1.0)
+
+
+from semirings.vector import make_vector  # noqa: E402
+LogValVector = make_vector(LogVal)
