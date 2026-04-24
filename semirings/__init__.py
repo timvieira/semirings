@@ -4,7 +4,7 @@ from semirings.base import Semiring, Chart, Wrapped, make_semiring, \
     check_axioms_samples, check_axioms, check_metric_axioms
 
 from semirings.mert import ConvexHull, Point
-from semirings.lazysort import LazySort, flatten, make_lazysort_semiring
+from semirings.lazysort import LazySort, ShortLex, flatten, make_lazysort_semiring
 from semirings.maxplus import MaxPlus
 from semirings.maxtimes import MaxTimes
 from semirings.mintimes import MinTimes

@@ -22,17 +22,91 @@ from functools import cached_property
 import numpy as np
 from arsenal import Integerizer
 
+from semirings.base import Semiring
 from semirings.kleene import kleene
 
 
-class WeightedGraph:
-    """Sparse weighted graph with SCC-decomposed closure and linear solvers."""
+class WeightedGraph(Semiring):
+    """Sparse weighted graph that is also a semiring under edgewise addition,
+    relation composition, and Kleene star (`closure`)."""
 
     def __init__(self, WeightType):
         self.WeightType = WeightType
         self.N = set()
         self.outgoing = defaultdict(set)
         self.E = WeightType.chart()
+
+    def __add__(self, other):
+        """Edgewise semiring sum over the union of node sets."""
+        if not isinstance(other, WeightedGraph):
+            return NotImplemented
+        assert self.WeightType is other.WeightType, \
+            f'WeightType mismatch: {self.WeightType} vs {other.WeightType}'
+        g = WeightedGraph(self.WeightType)
+        g.N |= self.N | other.N
+        for (i, j), w in self.E.items():
+            g[i, j] = w
+        for (i, j), w in other.E.items():
+            g[i, j] = g.E[i, j] + w
+        return g
+
+    def __mul__(self, other):
+        """Relation composition: `(self * other)[i, j] = Σ_k self[i, k] · other[k, j]`."""
+        if not isinstance(other, WeightedGraph):
+            return NotImplemented
+        assert self.WeightType is other.WeightType, \
+            f'WeightType mismatch: {self.WeightType} vs {other.WeightType}'
+        S = self.WeightType
+        g = WeightedGraph(S)
+        g.N |= self.N | other.N
+        for (i, k), w1 in self.E.items():
+            for j in other.outgoing.get(k, ()):
+                g[i, j] = g.E[i, j] + w1 * other.E[k, j]
+        return g
+
+    def star(self):
+        """Kleene star. Same as `closure()` — reflexive, transitive closure."""
+        return self.closure()
+
+    @property
+    def zero(self):
+        """Empty graph — additive identity under `+` (no edges, no nodes)."""
+        return WeightedGraph(self.WeightType)
+
+    @property
+    def one(self):
+        """Identity graph over `self.N` — multiplicative identity restricted to
+        this graph's node universe. Composition preserves `self.N`."""
+        g = WeightedGraph(self.WeightType)
+        for i in self.N:
+            g[i, i] = self.WeightType.one
+        return g
+
+    def metric(self, other):
+        """Max entrywise distance over the union of edge supports."""
+        if not isinstance(other, WeightedGraph):
+            return float('inf')
+        if self.WeightType is not other.WeightType:
+            return float('inf')
+        S = self.WeightType
+        keys = set(self.E) | set(other.E)
+        if not keys:
+            return 0.0
+        return max(S.metric(self.E.get((i, j), S.zero),
+                            other.E.get((i, j), S.zero))
+                   for (i, j) in keys)
+
+    def __eq__(self, other):
+        if not isinstance(other, WeightedGraph):
+            return NotImplemented
+        return (self.WeightType is other.WeightType
+                and self.N == other.N
+                and dict(self.E) == dict(other.E))
+
+    def __hash__(self):
+        return hash((self.WeightType,
+                     frozenset(self.N),
+                     frozenset(self.E.items())))
 
     def __iter__(self):
         return iter(self.E)

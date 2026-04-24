@@ -24,60 +24,86 @@ pip install git+https://github.com/timvieira/semirings
 
 ## Example: One Algorithm, Many Answers
 
-Consider a diamond-shaped graph with four nodes and weighted edges:
+Here is a tiny weighted graph — two nodes, three edges, a self-loop on `a` and
+a cycle `a ⇄ b`:
 
-```mermaid
-graph LR
-    s -->|a| u
-    s -->|b| v
-    u -->|c| t
-    v -->|d| t
-```
+![Fibonacci graph](docs/fibonacci-graph.png)
 
-There are two paths from `s` to `t`: one through `u` (edges `a`, `c`) and one
-through `v` (edges `b`, `d`). We can use Kleene's algorithm to compute the
-"total value" of all paths between every pair of nodes. The algorithm is always
-the same—only the semiring changes, and with it, the question being answered.
+There are infinitely many walks from `a` back to `a`: the empty walk, the
+self-loop, the detour through `b`, and arbitrary combinations. `WeightedGraph`
+is itself a semiring (edgewise sum, relation composition, Kleene star), so
+`g.star()` sums over all of them in whatever algebra you chose. Swap the
+`WeightType` and the *question* changes.
+
+### Symbolic: the Fibonacci generating function falls out
+
+Lift every edge weight to a SymPy symbol and Kleene returns a closed-form
+rational function. Taylor-expand it and the Fibonacci numbers are the
+coefficients:
 
 ```python
-from semirings import Float, MinPlus, MaxPlus, MaxTimes, Boolean
-from semirings.kleene import kleene
-import numpy as np
+from semirings import Symbolic, WeightedGraph
+from sympy import Symbol, simplify, series
 
-def solve(S, weights):
-    """Build the adjacency matrix and compute its Kleene star."""
-    #          s       u       v       t
-    A = np.array([
-        [S.zero, weights['a'], weights['b'], S.zero],  # s
-        [S.zero, S.zero,       S.zero,       weights['c']],  # u
-        [S.zero, S.zero,       S.zero,       weights['d']],  # v
-        [S.zero, S.zero,       S.zero,       S.zero],  # t
-    ], dtype=object)
-    star = kleene(A, S)
-    return star[0, 3]   # s -> t entry
+x = Symbol('x')
+g = WeightedGraph(Symbolic)
+g['a', 'a'] = x
+g['a', 'b'] = x
+g['b', 'a'] = x
 
-# Float: total weight of all paths (3*1 + 1*4 = 7)
-solve(Float, dict(a=3.0, b=1.0, c=1.0, d=4.0))
-# => 7.0
+f = g.star()['a', 'a']
+print(simplify(f))
+# -1.0/(x**2 + x - 1)           i.e.  1 / (1 - x - x²)
 
-# MinPlus: shortest path (min(3+1, 1+4) = 4)
-solve(MinPlus, dict(a=MinPlus(3), b=MinPlus(1), c=MinPlus(1), d=MinPlus(4)))
-# => MinPlus(4)
-
-# MaxPlus: longest path (max(3+1, 1+4) = 5)
-solve(MaxPlus, dict(a=MaxPlus(3), b=MaxPlus(1), c=MaxPlus(1), d=MaxPlus(4)))
-# => MaxPlus(5)
-
-# MaxTimes (Viterbi): most probable path (max(0.5*0.3, 0.4*0.8) = 0.32)
-solve(MaxTimes, dict(a=MaxTimes(0.5), b=MaxTimes(0.4),
-                     c=MaxTimes(0.3), d=MaxTimes(0.8)))
-# => MaxTimes(0.32)
-
-# Boolean: is t reachable from s?
-solve(Boolean, dict(a=Boolean(True), b=Boolean(True),
-                    c=Boolean(True), d=Boolean(True)))
-# => Boolean(True)
+print(series(f, x, 0, 10).removeO())
+# 1 + x + 2·x² + 3·x³ + 5·x⁴ + 8·x⁵ + 13·x⁶ + 21·x⁷ + 34·x⁸ + 55·x⁹
 ```
+
+The coefficient of `xⁿ` is the number of length-`n` walks from `a` back to
+`a`, and those counts are Fibonacci.
+
+### Float: total weight of infinitely many walks
+
+```python
+from semirings import Float, WeightedGraph
+g = WeightedGraph(Float)
+g['a', 'a'] = 0.3;  g['a', 'b'] = 0.3;  g['b', 'a'] = 0.3
+print(g.star()['a', 'a'])
+# 1.6393442622950823           i.e. 1 / (1 - 0.3 - 0.09)
+```
+
+### MinPlus: shortest path
+
+```python
+from semirings import MinPlus, WeightedGraph
+g = WeightedGraph(MinPlus)
+for e in [('a','a'), ('a','b'), ('b','a')]:
+    g[e] = MinPlus(1.0)
+print(g.star()['a', 'b'])
+# MinPlus(1.0, ...)             — take a → b directly
+```
+
+### ShortLex: enumerate walks shortest-first, on demand
+
+```python
+from semirings import WeightedGraph, ShortLex
+from arsenal.iterextras import take
+
+g = WeightedGraph(ShortLex)
+g['a', 'a'] = ShortLex('A', 'A')
+g['a', 'b'] = ShortLex('B', 'B'); g['b', 'a'] = ShortLex('C', 'C')
+
+for p in take(8, g.star()['a', 'a']):
+    print(repr(p.score))
+# '', 'A', 'AA', 'BC', 'AAA', 'ABC', 'BCA', 'AAAA'
+# grouped by length:  0 | 1 | 2 (×2) | 3 (×3) | 4 ...  — Fibonacci again
+```
+
+The returned stream is a lazy sorted merge, so this works even though the set
+of walks is infinite.
+
+Same graph, same call, four different answers — one of them a closed-form
+generating function, one a live enumerator over an infinite support.
 
 ## Semiring Compendium
 
@@ -100,7 +126,12 @@ solve(Boolean, dict(a=Boolean(True), b=Boolean(True),
 
 - **`LazySort`** (K-best): Lazily enumerates the K-best derivations in sorted
   order without fixing K in advance. Uses lazy sorted merge and sorted product
-  over streams.
+  over streams. Default is max-times (Viterbi K-best); build variants with
+  `make_lazysort_semiring(name, base_times, base_one, base_lt)`.
+
+- **`ShortLex`**: `LazySort` variant where derivations are strings, ordered
+  shortest-first with lexicographic tiebreaks. Concatenates with `+`.
+  Enumerates walks, parses, or any sequence-valued derivation in reading order.
 
 - **`ConvexHull`** (MERT): `+` is convex hull union, `*` is Minkowski sum.
   Finds the set of optimal derivations under all linear weightings of

@@ -203,5 +203,15 @@ LazySort = make_lazysort_semiring(
     base_lt=lambda a, b: a > b,
 )
 
+# Shortest-first then lexicographic: strings concatenate, enumerate by length
+# (ties broken lexicographically). Useful for enumerating walks, parses, or any
+# sequence-valued derivations in a natural reading order.
+ShortLex = make_lazysort_semiring(
+    name='ShortLex',
+    base_times=operator.add,
+    base_one='',
+    base_lt=lambda a, b: (len(a), a) < (len(b), b),
+)
+
 zero = LazySort.zero
 one = LazySort.one

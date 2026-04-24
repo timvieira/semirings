@@ -19,3 +19,7 @@ class Symbolic(Semiring):
     @staticmethod
     def symbol(i):
         return Symbol(i)
+
+    @staticmethod
+    def star(a):
+        return 1 / (1 - a)
