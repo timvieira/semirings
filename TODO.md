@@ -29,6 +29,22 @@
 - Centralize my collection of semirings that are currently scattered across many projects.
 - Missing first- and second-order expectation semirings
 
+## Algebra cherry-picks and redirects (DESIGN.md Stage 4 — deferred)
+
+The `~/projects/algebra/` repo still has its own implementations of every concrete semiring and some unique types. Stage 0 added `semirings` as a dep in `algebra/setup.py`, but no redirects have happened.
+
+**Scope:**
+
+- Duplicate semirings in `algebra/algebra/number/`: MinPlus, MaxPlus, Boolean, LogVal, Bottleneck (in `fuzzy.py`), Regex, Interval. Replace each with a re-export from `semirings`.
+- Unique-to-algebra types worth porting: `dual.py` (redundant once Stage 3 Jet lands — becomes `Jet(S, S, order=1)` alias), `poly.py` / `Monomial` (port if needed), `baggr.py` / `BagRing` (port if the DB-provenance use case matters; otherwise skip).
+- **Stays in `algebra/`:** `Ring`, `Field`, `ClosedSemiring`, and all the matrix algorithms (`kleene.py`, `lu.py`, `gaussjordan.py`, `bareiss.py`, `eig.py`, `iterative.py`, `wfsa.py`, `graph.py`). These are `algebra/`'s purpose — they're parameterized over semirings.
+
+**Per-item protocol:** same as Stages 1–2. Port to `semirings/` (or confirm it's already there), add AXIOM_CASES entry if a real semiring, replace the algebra-side file with a shim or re-export, run algebra's test suite, verify no regressions beyond baseline.
+
+**Baseline (recorded during Stage 0):** `/tmp/baseline-algebra.txt` — 3 passed, 5 failed, 9 errors. Most failures are pre-existing numpy-version drift (`numpy.product` removed) or missing external deps (`spanning_tree`, `algebra.mtt.bf`). When evaluating the redirect, diff against this baseline — don't expect a green board.
+
+**Ordering tip:** most value is in the concrete-semiring redirects (one source of truth). `dual.py` becomes trivial after Stage 3. `poly.py`/`baggr.py` are lowest priority.
+
 ## Pairing framework (DESIGN.md Stage 3 — deferred)
 
 Full design is in `DESIGN.md` Part I. Summary so that future sessions can pick up:
