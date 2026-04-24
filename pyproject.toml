@@ -33,7 +33,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["semirings"]
+packages = ["semirings", "semirings.sampling"]
 
 [tool.ruff.lint]
 ignore = ["E701", "E702", "E741"]
