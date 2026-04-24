@@ -29,6 +29,40 @@
 - Centralize my collection of semirings that are currently scattered across many projects.
 - Missing first- and second-order expectation semirings
 
+## Pairing framework (DESIGN.md Stage 3 — deferred)
+
+Full design is in `DESIGN.md` Part I. Summary so that future sessions can pick up:
+
+**What:** two semiring-construction combinators plus a free-semiring realization.
+
+- `Product(S, D)` — categorical product. Componentwise +, *, 0, 1. Requires D to be a semiring.
+- `Jet(S, M, order=k)` — truncated polynomial S[ε]/(ε^(k+1)). First-order: `(p, r)` with `(p1, r1)·(p2, r2) = (p1·p2, p1·r2 + r1·p2)` (note the non-commutative order — see below). M defaults to S and must be an S-module otherwise. k=1 and k=2 are the cases we need.
+- `SelectedDerivation(X)` — chain-of-generators monoid promoted to a semiring via sum-selection. Paired with a selective S (MaxPlus/MinPlus) gives classical backpointers.
+- `FreeClosedSemiring(X)` — free closed semiring over X, backed by the existing `wfsa` package with ℕ weights. Decidable equality via WFSA minimization. **Open question: does `wfsa` already support ℕ weights? If not, upstream PR first.**
+
+**Why:** collapses three ad-hoc classes into Jet aliases.
+
+- `Dual(S)` (misc.py)            = `Jet(S, S, order=1)`
+- `Expectation` (expectation.py) = `Jet(LogVal, LogVal, order=1)`
+- `SecondOrderExpectation`       = `Jet(LogVal, LogValVector, order=2)` (two independent infinitesimals — may need a two-variable variant)
+- Plus `Product(S, FreeClosedSemiring)` and `Product(S, SelectedDerivation)` as the general-purpose derivation trackers, replacing hypergraphs' per-class `.d` field pattern.
+
+**Design decisions already settled (from session discussion):**
+
+1. The jet multiplication uses `p1·r2 + r1·p2`, not `p1·r2 + p2·r1`. The session's Stage 2 commit (`a3ad760`) fixed this latent bug in the existing `Expectation` / `SecondOrderExpectation`, and an `ExpectationRL = make_expectation(RegularLanguage, RegularLanguage)` entry was added to AXIOM_CASES to guard against regression.
+2. First-order star: `star((p, r)) = (p*, p* · r · p*)`. Non-commutative.
+3. Second-order star: `star((p, r, s, t)) = (p*, p* r p*, p* s p*, p* r p* s p* + p* s p* r p* + p* t p*)`. The two cross-terms only collapse if the base is commutative.
+4. LogVal's `__mul__` now honors absorbing zero — required so `0 · ∞ = 0` after star introduces infinities (was previously NaN).
+
+**Retrofitting plan (Stage 3 execution):**
+
+- Implement `Product`, `Jet`, `SelectedDerivation`, `FreeClosedSemiring` in `semirings/pairing.py` and `semirings/free.py` (the latter already exists with `FreeExpr` — add `FreeClosedSemiring` there too).
+- Replace `Dual`, `Expectation`, `SecondOrderExpectation` implementations with `Jet(...)` aliases. Keep public names.
+- AXIOM_CASES: no changes needed — existing entries continue to exercise the same semantics via the aliases.
+- Verification: all existing tests must still pass.
+
+**Effort estimate:** 1–2 days, per DESIGN.md Part III Stage 3.
+
 ## Axiom-test coverage for FreeExpr and sampling semirings
 - `FreeExpr` is a magma — syntactic tree equality fails commutativity/associativity
   of `+` and `*` — but it is equal-up-to-semiring-axioms under the evaluation
