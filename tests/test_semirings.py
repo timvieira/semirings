@@ -3,7 +3,7 @@ import pytest
 from arsenal import assert_throws
 from arsenal.iterextras import take
 from semirings import (
-    MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean, Count,
+    MinPlus, MinTimes, MaxPlus, MaxTimes, Float, CutSets, Boolean, Count, Bag,
     Bottleneck, minmax, maxmin, LogVal, ConvexHull, Point,
     Lukasiewicz, Interval, LazySort, Dual, Bridge, Division,
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
@@ -737,6 +737,11 @@ AXIOM_CASES = [
     (Float, [0, -3, 2, 1, -1], {}),
     (Boolean, [Boolean(True), Boolean(False)], {}),
     (Count, [Count.zero, Count.one, Count(2), Count(3), Count(5)], {'star': False}),
+    # Bag: product tags pairs, so multiplicative identity/associativity fail.
+    (Bag, [
+        Bag.zero, Bag.one,
+        Bag({'x': 2}), Bag({'y': 3}), Bag({'x': 1, 'y': 1}),
+    ], {'assoc': False, 'star': False}),
     (RegularLanguage, [
         RegularLanguage.lift('a'),
         RegularLanguage.lift('b'),
