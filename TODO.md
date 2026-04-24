@@ -113,6 +113,40 @@ Full design is in `DESIGN.md` Part I. Summary so that future sessions can pick u
 - Similarly, consider a WCFG-backed variant for context-free weighted languages.
 - See dissertation S3.3 "Formal Languages" / "Weighted formal languages" for the definition.
 
+## Code-quality audit (session review)
+
+Rough edges identified while reviewing the current state. Not urgent individually, but worth tracking.
+
+### Organization
+
+- **Split `misc.py`** — currently a catch-all of seven unrelated semirings. Suggested partition: `semirings/provenance.py` (Why, Lineage, Bridge, VBridge), `semirings/fuzzy.py` (Lukasiewicz, ThreeValuedLogic), `semirings/string.py` (String, longest_common_prefix), `semirings/division.py` (Division). `make_set`, `minmax`, `maxmin`, `dual` are factories — put them with other factories (see next).
+- **Decide the fate of `sample.py`** — a one-line shim re-exporting `sampling.lazy2.Sample` for backwards-compat with `experimental/sample_powerseries.py`. Either update experimental to import from `semirings.sampling.lazy2` and delete `sample.py`, or document the shim's purpose in a comment.
+- **`experimental/` state** — the files `powerseries.py` and `sample_powerseries.py` sit untracked in git. Either track them properly (commit) or move to a separate working area. Right now they're in neither state.
+
+### Unity
+
+- **Unify the factory-construction pattern.** There are currently eight factories following slightly different conventions: `make_semiring` (base.py), `make_set` / `minmax` / `maxmin` / `dual` (misc.py), `make_vector` (vector.py), `make_lazysort_semiring` (lazysort.py), `make_expectation` (expectation.py). They all do "build a class parametrically" but with different call conventions, different naming, and different ways of setting `zero`/`one`. Consider a single `make_semiring(name, **kwargs)` pattern or a `@semiring` decorator.
+- **Clarify the `star` convention.** Base class offers three algorithms (`star_approx`, `star_fixpoint`, `star_doubling`) as free helpers; concrete classes pick one, or roll their own closed form (MaxPlus handles `score > 0` with a sentinel; MinPlus returns `-inf` for negative cost; ConvexHull raises `NotImplementedError`; Expectation now has a closed form; Lukasiewicz uses the inherited fixpoint). Document in `base.py` which algorithm is the default and when each override applies; consider naming a `star_closed` convention for classes that provide it.
+
+### Elegance
+
+- **`zero = None; one = None` in the base class** is semantically clear (subclasses must override) but type-ugly. Pyright flags every override. Options: sentinel values, explicit `@abstractproperty`, or just a class variable with a strong docstring.
+- **`__hash__ = None`** on Vector, Expectation, SecondOrderExpectation — the semantic is right (structural `__eq__` over float-ish values → no sane hash) but proliferated. Consider a small mixin `class StructuralEqNoHash: __hash__ = None` for explicitness.
+- **Two equality conventions cohabitate.** LogVal uses `np.allclose`; CutSets/String use structural equality; Float uses value equality; some types inherit identity equality and rely on the `metric()` tolerance fallback in `assert_equal`. Works, but the reader has to juggle three models. At minimum, document per class which convention applies.
+
+### Cleanliness
+
+- **No type annotations anywhere.** Pyright diagnostics are noisy because of it (`lift` override mismatches, `zero: None` assignments, etc.). Consider a type-annotation pass on `base.py` + the concrete semirings at minimum. Trade-off: generic types over `Semiring[T]` imply some design decisions about what `T` is.
+- **Python-2 vestiges:** `__div__ = __truediv__` in `vector.py` no longer serves any purpose (Python 3 only). Safe to delete.
+- **`make_semiring`'s class body** (base.py:158-194) is a 40-line class nested inside a function. Hard to read. Either extract the inner class logic to a module-level base + add attributes via the factory, or add a section-comment to make the structure visible.
+
+### Tests
+
+- **Add section separators to `tests/test_semirings.py`** — 1252 lines, navigable but getting long. A handful of `# ===== <theme> =====` comments would help (e.g., "Per-semiring direct tests", "Metric helpers", "AXIOM_CASES", "Matrix-semiring tests", "WeightedGraph tests").
+- **The top-of-file import wall** is one `from semirings import (...)` with 25+ names. Group them (axiomatic: semirings; utility: check_*, make_set; graph: WeightedGraph, scc_decomposition) to make the intent scannable.
+- **Module-level test fixtures** `_MinMax`, `_MaxMin`, `_Set` look like private module constants but are test fixtures. Add a comment like `# Test fixtures used by AXIOM_CASES below.`
+- **Edge-case coverage gaps.** Examples worth adding: `LogVal` near float underflow, `ConvexHull` on degenerate colinear points, `RegularLanguage` on alphabet-sized regexes, `WeightedGraph` on disconnected components, `MinPlus`/`MaxPlus` behavior at ±inf inside sums.
+
 ## Add `metric()` to semiring interface
 - In progress: adding `metric(self, other)` methods to semiring classes for approximate equality testing.
 - Currently added to `Wrapped`, `make_semiring`, `LogVal`, `MaxPlus`, `MaxTimes`, `MinPlus`, `MinTimes`, and `Dual`.
