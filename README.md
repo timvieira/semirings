@@ -105,6 +105,37 @@ of walks is infinite.
 Same graph, same call, four different answers — one of them a closed-form
 generating function, one a live enumerator over an infinite support.
 
+## Example: Pareto-optimal Derivations with ConvexHull
+
+Give every rule two competing scores — fluency vs. brevity, quality vs. cost,
+whatever. Exponentially many combined derivations exist, but only the
+*Pareto-optimal* ones matter: a derivation is relevant iff it maximizes some
+linear combination of the two scores. The `ConvexHull` semiring (Dyer, 2013)
+computes exactly that set, composing hulls instead of enumerating derivations.
+
+```python
+from semirings import ConvexHull, Point
+
+# Two decision steps, three options each, scored (s₁, s₂).
+step1 = ConvexHull([Point(1, 4), Point(3, 3), Point(4, 1)])
+step2 = ConvexHull([Point(0, 2), Point(2, 0), Point(1, 1)])
+
+# Sum over the 3×3 combined derivations is Minkowski addition of the hulls.
+result = step1 * step2
+print(sum(1 for _ in result))    # 5 hull vertices, not 9 raw combinations
+```
+
+![Convex hull of the Minkowski sum](docs/convex-hull.png)
+
+Grey dots are all 9 combined `(s₁, s₂)` pairs. The blue polygon is the hull
+that `step1 * step2` returns. Everything inside the hull is dominated by some
+convex combination of the vertices, so the DP throws those points away. Chain
+K steps with N options each, and only the extreme points survive at every
+step — the work stays linear in the hull size, never exponential in K.
+
+`ConvexHull.star()` is intentionally not defined: nontrivial hulls blow up
+under star (the Minkowski-sum iteration grows without bound). Use it on DAGs.
+
 ## Semiring Compendium
 
 ### Optimization
@@ -245,16 +276,6 @@ Tropical = make_semiring(
     zero  = float('inf'),
     one   = 0,
 )
-```
-
-## Kleene's Algorithm
-
-The library includes Kleene's algorithm for computing the transitive closure of
-a matrix over any semiring—a single algorithm that generalizes Floyd-Warshall
-(shortest paths), transitive closure (reachability), and more:
-
-```python
-from semirings.kleene import kleene
 ```
 
 ## References
