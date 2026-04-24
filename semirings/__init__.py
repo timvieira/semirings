@@ -16,6 +16,7 @@ from semirings.boolean import Boolean
 from semirings.count import Count
 from semirings.bag import Bag
 from semirings.util import derivation, post_process
+from semirings.vector import make_vector
 from semirings.cutsets import CutSets
 from semirings.regex import Symbol
 from semirings.interval import Interval, make_interval
