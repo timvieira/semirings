@@ -79,6 +79,71 @@ Full design is in `DESIGN.md` Part I. Summary so that future sessions can pick u
 
 **Effort estimate:** 1–2 days, per DESIGN.md Part III Stage 3.
 
+## Audit carrier sets and star conventions per semiring
+
+Several semirings currently have star behavior that is technically correct but
+undocumented about *which* algebraic structure is in play. The carrier set
+determines whether star is the Conway-axiom solution of `x* = 1 + x·x*` or
+the ω-continuous supremum `sup_n (1 + x + x² + … + x^n)`, and these disagree
+for many values.
+
+Concrete examples to untangle:
+
+- **`Float.star(2)` returns `-1`.** That's the Conway answer treating `Float`
+  as the field ℝ — `-1 = 1 + 2·(-1)` solves the fixed-point equation. The
+  ω-continuous answer over `[0, +∞]` would be `+∞` (sup of `1, 3, 7, 15, …`).
+  Different structure, different value; both are valid in their own carrier.
+- **`Float.star(-1)` returns `0.5`.** Conway on ℝ: `0.5 = 1 + (-1)·0.5`, fine.
+  ω-continuous: the partial sums `1, 0, 1, 0, …` oscillate — no supremum, not
+  closed. So `Float` as currently written is implicitly the Conway / field-ℝ
+  semiring, not the ω-continuous nonneg-reals one.
+- **`Float.star(1)` returns `+∞`** — a special case that jumps to the
+  ω-continuous answer since Conway has no ℝ-solution here. Inconsistent with
+  the rest of `Float.star`.
+- **`MinPlus` over extended reals `ℝ ∪ {+∞, -∞}`** is closed in both senses
+  and they agree: `star(x) = 0` for `x ≥ 0`, `-∞` for `x < 0`. No ambiguity,
+  but the carrier should be stated.
+- **`ConvexHull.star` is `NotImplementedError`** because general hulls aren't
+  closed under either interpretation. A cones-only variant or a Pareto-frontier
+  variant (`experimental/pareto.py`) would be closed — which one we offer
+  should be a deliberate choice, not the absence of one.
+
+What to do:
+
+1. For each semiring, state the intended carrier in the class docstring
+   (e.g., "Float over ℝ as a Conway semiring" vs "Float over `[0, +∞]` as an
+   ω-continuous semiring"), and pick one. If both are useful, expose them as
+   separate classes (`Float`, `FloatNonneg`) rather than overloading one name.
+2. Name the star convention explicitly: `star_conway`, `star_omega`, or
+   whatever pairs well with the existing `star_approx` / `star_fixpoint` /
+   `star_doubling` helpers. Let `.star()` dispatch to the class's chosen one.
+3. Resolve the `Float.star(1) = inf` special case: it's the ω-continuous
+   answer embedded in an otherwise-Conway implementation. Either return `nan`
+   (Conway has no ℝ-solution), or make `Float` explicitly ω-continuous on
+   `[0, +∞]` and use the Conway reals as a separate class.
+4. AXIOM_CASES should exercise star at the boundary values (`x = 1`, `x = -1`,
+   `x = ±∞`, `x = 2` for Float; zero / one / negative / `+∞` for MinPlus) so
+   the chosen convention is pinned by tests.
+5. **Catalog ω-continuity per semiring.** Once the carriers are pinned down,
+   mark each class with its structural properties — ω-continuous, Conway,
+   idempotent, commutative, complete — as attributes (`is_omega_continuous`,
+   `is_conway`, etc.) or a single `structural_properties` set. This is
+   pedagogically useful (README / compendium can surface which semirings sum
+   infinite series vs solve fixpoint equations) and also enables tests that
+   check, e.g., "if a semiring claims ω-continuity, then `star_approx(x, T)`
+   converges monotonically to `star(x)` as T grows." Likely labels to track:
+   `ω-continuous` (MinPlus, MaxPlus, Boolean, Count, LogVal over `[0, +∞]`,
+   MinTimes on `[0, 1]`, MaxTimes on `[0, 1]`), `Conway-only` (Float over ℝ,
+   anything we decide is a field rather than a nonneg-semiring), `neither`
+   (ConvexHull on general hulls, Interval), `idempotent` (MinPlus, MaxPlus,
+   Boolean, CutSets, Why, Lineage, Bottleneck), `commutative` (most), and so
+   on.
+
+Related: "Clarify the `star` convention" in the code-quality audit below
+touches the same area but from the algorithm-selection angle (fixpoint vs
+doubling vs closed form). This item is about the mathematical structure; pick
+that first, then the algorithm follows.
+
 ## Axiom-test coverage for FreeExpr and sampling semirings
 - `FreeExpr` is a magma — syntactic tree equality fails commutativity/associativity
   of `+` and `*` — but it is equal-up-to-semiring-axioms under the evaluation
