@@ -31,3 +31,17 @@ class Count(Semiring):
 
 Count.zero = Count(0)
 Count.one = Count(1)
+
+
+def make_count_k(K):
+    """k-truncated counting semiring: ℕ saturated at K. Closed under star
+    (star(0) = 1, star(n>0) = K), unlike plain Count."""
+    from semirings.base import make_semiring
+    return make_semiring(
+        f'Count[{K}]',
+        lambda a, b: min(K, a + b),
+        lambda a, b: min(K, a * b),
+        0,
+        1,
+        star=lambda x: 1 if x == 0 else K,
+    )

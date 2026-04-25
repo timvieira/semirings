@@ -15,14 +15,14 @@ from semirings.symbolic import Symbolic
 from semirings.entropy import Entropy
 from semirings.float import Float
 from semirings.boolean import Boolean
-from semirings.count import Count
+from semirings.count import Count, make_count_k
 from semirings.bag import Bag
 from semirings.util import derivation, post_process
 from semirings.vector import make_vector
 from semirings.free import FreeExpr, Sum, Prod, Star, backprop, toposort, weight, maxtimes, lazysort as free_lazysort, sample as free_sample
 from semirings.cutsets import CutSets
 from semirings.pareto import Pareto, make_pareto
-from semirings.regex import Symbol
+from semirings.regex import Symbol, RegularLanguage, RegularLanguageSet
 from semirings.interval import Interval, make_interval
 from semirings.kleene import MatrixSemiring
 from semirings.graph import WeightedGraph, scc_decomposition

@@ -154,6 +154,10 @@ generating function, one a live enumerator over an infinite support.
   nonnegative reals, but avoids underflow by storing log-magnitudes and sign
   bits. Indispensable for probabilistic models.
 
+- **`Count`** / `make_count_k(K)`: Natural-number counting semiring (ℕ, +, ·).
+  Plain `Count` diverges under star for `n ≥ 1`; `make_count_k(K)` returns the
+  k-truncated variant saturated at `K`, which is closed under star.
+
 - **Dual numbers** (`semirings.misc`): Forward-mode automatic differentiation.
   Computes function value and derivative simultaneously.
 
@@ -182,6 +186,10 @@ Provenance semirings track *why* a query result holds in a database.
   Values are regular expressions / finite-state automata. The semiring of
   formal languages can enumerate the set of strings accepted by a grammar or
   automaton.
+
+- **`RegularLanguageSet`** (`semirings.regex`): FSA-backed wrapper exposing
+  set-style `|` (union) and `&` (intersection) with language equality—suitable
+  as the carrier for `make_set` over regular languages.
 
 ### Graph Structure
 

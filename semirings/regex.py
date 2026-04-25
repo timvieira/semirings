@@ -139,6 +139,25 @@ NULL = RegularLanguage.zero = Zero()
 RegularLanguage.lift = Symbol
 
 
+class RegularLanguageSet:
+    """An FSA wrapped to expose set-style union (|) and intersection (&) with
+    language equality. `RegularLanguage` only provides semiring +/*, and bare
+    FSAs use structural rather than language equality."""
+    def __init__(self, fsa):
+        assert isinstance(fsa, FSA)
+        self.fsa = fsa
+    def __or__(self, other):  return RegularLanguageSet(self.fsa | other.fsa)
+    def __and__(self, other): return RegularLanguageSet(self.fsa & other.fsa)
+    @classmethod
+    def lift(cls, x):         return cls(FSA.lift(x))
+    def __eq__(self, other):  return self.fsa.equal(other.fsa)
+    def __hash__(self):       return 0
+    def __repr__(self):       return f'RegularLanguageSet({self.fsa.min()})'
+
+RegularLanguageSet.zero = RegularLanguageSet(FSA.zero)
+RegularLanguageSet.one = RegularLanguageSet(FSA.one)
+
+
 def evaluate(x, subst, semiring):
     def f(x):
         if   isinstance(x, Symbol): return subst[x]

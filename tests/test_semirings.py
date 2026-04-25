@@ -9,9 +9,9 @@ from semirings import (
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
     check_axioms_samples, check_axioms, check_metric_axioms,
     WeightedGraph, Expectation, SecondOrderExpectation,
-    Pareto, make_pareto,
+    Pareto, make_pareto, make_count_k,
 )
-from semirings.regex import RegularLanguage
+from semirings.regex import RegularLanguage, RegularLanguageSet
 from fsa import FSA
 
 
@@ -102,16 +102,8 @@ def test_max_capacity():
 
 def test_countK():
 
-    # k-collapsed integers
     K = 5
-    S = make_semiring(
-        f'Count[{K}]',
-        lambda a,b: min(K, a+b),
-        lambda a,b: min(K, a*b),
-        0,
-        1,
-        star = lambda x: 1 if x == 0 else K
-    )
+    S = make_count_k(K)
 
     members = list(map(S, range(K+1)))
 
@@ -353,23 +345,6 @@ def test_string():
 
 
 def test_regular_sets():
-
-    # We needed a version of RegularLanguage with | and & defined -- those ops
-    # are currently only available on FSAs and FSAs have the wrong equality
-    # operation.
-    class RegularLanguageSet:
-        def __init__(self, fsa):
-            assert isinstance(fsa, FSA)
-            self.fsa = fsa
-        def __or__(self, other): return RegularLanguageSet(self.fsa | other.fsa)
-        def __and__(self, other): return RegularLanguageSet(self.fsa & other.fsa)
-        @classmethod
-        def lift(cls, x): return cls(FSA.lift(x))
-        def __eq__(self, other): return self.fsa.equal(other.fsa)
-        def __hash__(self): return 0
-        def __repr__(self): return f'RegularLanguageSet({self.fsa.min()})'
-    RegularLanguageSet.zero = RegularLanguageSet(FSA.zero)
-    RegularLanguageSet.one = RegularLanguageSet(FSA.one)
 
     a,b,c = map(FSA.lift, 'abc')
 
