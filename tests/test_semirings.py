@@ -9,6 +9,7 @@ from semirings import (
     make_set, String, ThreeValuedLogic, VBridge, Why, Lineage, make_semiring, MatrixSemiring, Entropy,
     check_axioms_samples, check_axioms, check_metric_axioms,
     WeightedGraph, Expectation, SecondOrderExpectation,
+    Pareto, make_pareto,
 )
 from semirings.regex import RegularLanguage
 from fsa import FSA
@@ -1059,6 +1060,17 @@ AXIOM_CASES = [
         String("a"), String("aa"), String("aaa"),
         String("b"), String("aaab"), String("abab"),
     ], {'right_distrib': False}),
+    # Pareto: non-negative coords keep `star` in its trivial fast path
+    # (star = one); mixed-sign elements are in the open part of the carrier
+    # and would not converge.
+    (Pareto, [
+        Pareto.zero, Pareto.one,
+        Pareto([(1, 2)]),
+        Pareto([(2, 1)]),
+        Pareto([(1, 2), (2, 1)]),
+        Pareto([(0, 3), (3, 0)]),
+        Pareto([(1, 1)]),
+    ], {}),
     # Symbol, LazySort: regex equality is insufficient / lazy.
     # VBridge: same axiom shape as Bridge; tested via test_vertex_bridge.
 ]
@@ -1245,6 +1257,74 @@ def test_weighted_graph_scc():
         Float.assert_equal(sol.get(i, Float.zero),
                            scc_based.get((i, 5), Float.zero),
                            tol=1e-9)
+
+
+def test_pareto_behavior():
+    # Construction prunes dominated points and dedupes.
+    p = Pareto([(1, 2), (2, 1), (3, 3), (1, 2)])    # (3,3) dominated; dup (1,2)
+    assert p.points == ((1, 2), (2, 1))
+
+    # Dimension is enforced.
+    with pytest.raises(ValueError):
+        Pareto([(1, 2, 3)])                          # not 2D
+
+    # Higher-dimensional Pareto.
+    P3 = make_pareto(3)
+    assert P3.dim == 3
+    assert P3.zero.points == ()
+    assert P3.one.points == ((0, 0, 0),)
+    assert P3([(1, 0, 0), (0, 1, 0)]).points == ((0, 1, 0), (1, 0, 0))
+
+    # 1D collapses to a min: any non-negative singleton's star is one.
+    P1 = make_pareto(1)
+    assert P1([(5,)]).star() == P1.one
+    assert P1([(0,)]).star() == P1.one
+
+    # Mixed-sign coords sit in the open part of the carrier; star raises
+    # rather than spinning forever.
+    with pytest.raises(ValueError):
+        Pareto([(1, -1), (-1, 1)]).star()
+
+
+def test_pareto_metric_axioms():
+    samples = [
+        Pareto.zero, Pareto.one,
+        Pareto([(1, 2)]),
+        Pareto([(2, 1)]),
+        Pareto([(1, 2), (2, 1)]),
+        Pareto([(0, 3), (3, 0)]),
+    ]
+    check_metric_axioms(Pareto, samples)
+
+
+def test_pareto_plot_smoke():
+    plotly = pytest.importorskip('plotly')
+    # All three supported dimensions return a plotly Figure with at least one trace.
+    P1 = make_pareto(1)
+    P3 = make_pareto(3)
+    fig1 = P1([(1,), (3,), (2,)]).plot()
+    fig2 = Pareto([(1, 2), (2, 1)]).plot()
+    fig3 = P3([(1, 0, 0), (0, 1, 0), (0, 0, 1)]).plot()
+    for fig in (fig1, fig2, fig3):
+        assert isinstance(fig, plotly.graph_objects.Figure)
+        assert len(fig.data) >= 1
+    # Zero is allowed (empty figure).
+    Pareto.zero.plot()
+    # 4D is not supported.
+    P4 = make_pareto(4)
+    with pytest.raises(NotImplementedError):
+        P4([(1, 0, 0, 0)]).plot()
+
+
+def test_pareto_with_weighted_graph():
+    # Pareto shortest paths on a small DAG.
+    g = WeightedGraph(Pareto)
+    g['s', 'a'] = Pareto([(3, 1)])
+    g['a', 't'] = Pareto([(0, 4)])
+    g['s', 'b'] = Pareto([(1, 3)])
+    g['b', 't'] = Pareto([(4, 0)])
+    closure = g.star()
+    assert set(closure['s', 't'].points) == {(3, 5), (5, 3)}
 
 
 if __name__ == '__main__':

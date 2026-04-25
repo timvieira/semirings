@@ -136,6 +136,14 @@ generating function, one a live enumerator over an infinite support.
 - **`ConvexHull`** (MERT): `+` is convex hull union, `*` is Minkowski sum.
   Finds the set of optimal derivations under all linear weightings of
   objectives—used in minimum error rate training for machine translation.
+  Not closed (no `star`); use on DAGs.
+
+- **`Pareto`** / `make_pareto(d)`: Pareto-frontier semiring (min convention,
+  arbitrary dimension `d`). `+` is union pruned to non-dominated points, `*`
+  is Minkowski sum pruned the same way. Closed on non-negative inputs (star
+  collapses to `one`); open part of the carrier (mixed-sign coordinates) can
+  diverge, in which case `star` raises after a bounded fixpoint loop. Has a
+  `plot()` method (plotly, optional) for `d` in {1, 2, 3} with hover tooltips.
 
 ### Arithmetic & Probabilities
 

@@ -33,6 +33,10 @@ dev = [
     "coverage",
     "graphviz",
 ]
+viz = [
+    "plotly",
+    "matplotlib",
+]
 
 [tool.setuptools]
 packages = ["semirings", "semirings.sampling"]
