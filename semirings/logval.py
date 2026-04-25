@@ -1,3 +1,7 @@
+"""
+Signed log space.
+"""
+
 import numpy as np
 from numpy import log as _log, exp, isnan, log1p as _log1p, expm1
 from arsenal import colors
@@ -51,6 +55,9 @@ def log1mexp(x):
 
 
 class LogVal(base.Semiring):
+    """
+    Signed log space.
+    """
 
     def __init__(self, pos, ell):
         self.pos = pos

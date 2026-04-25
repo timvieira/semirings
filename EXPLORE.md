@@ -6,39 +6,34 @@ and results to dig into together. Each entry includes enough context to recover
 
 ## Semirings to add
 
-- [ ] **[Expectation semiring](https://scholar.google.com/scholar?q=Eisner+2002+Parameter+Estimation+Probabilistic+Finite-State+Transducers)** (Eisner 2002).
-      Pairs $(p, r)$ with $(p_1,r_1)\oplus(p_2,r_2)=(p_1{+}p_2,\ r_1{+}r_2)$ and
-      $(p_1,r_1)\otimes(p_2,r_2)=(p_1 p_2,\ p_1 r_2 + p_2 r_1)$. One forward pass yields $\mathbb{E}[r]$ over derivations.
-      *Why it's here:* the cleanest "algebra computes the gradient" story outside AD. First question: implement it, reproduce the forward-backward-as-expectation reduction.
+- [x] **[Expectation semiring](https://scholar.google.com/scholar?q=Eisner+2002+Parameter+Estimation+Probabilistic+Finite-State+Transducers)** (Eisner 2002) — `expectation.py` (`Expectation`).
+      Open follow-up: notebook reproducing the forward-backward-as-expectation reduction.
 
-- [ ] **[Higher-order expectation semiring](https://scholar.google.com/scholar?q=Li+Eisner+2009+First+Second+Order+Expectation+Semirings)** (Li & Eisner 2009).
-      Tuples carrying $p, r, s, rs, r^2, \ldots$ for variance, covariance, Hessian-vector products.
-      *Why:* variance of a feature over derivations — without sampling — in one pass. First question: how does it compose with lazy / truncated evaluation?
+- [x] **[Higher-order expectation semiring](https://scholar.google.com/scholar?q=Li+Eisner+2009+First+Second+Order+Expectation+Semirings)** (Li & Eisner 2009) — `expectation.py` (`SecondOrderExpectation`).
+      Open follow-up: how it composes with lazy / truncated evaluation.
 
 - [ ] **[Provenance semiring](https://scholar.google.com/scholar?q=Green+Karvounarakis+Tannen+2007+Provenance+Semirings)** $\mathbb{N}[X]$ (Green, Karvounarakis, Tannen, PODS 2007). See also [data lineage](https://en.wikipedia.org/wiki/Data_lineage).
-      Symbolic polynomial over tuple-IDs; project homomorphically to Bool (why-provenance), $\mathbb{N}$ (counting), tropical (trust), security lattice.
-      *Why:* "parse once, interpret many" — a direct analogue to what semiring parsing does for DPs, but for databases. First question: can we get a clean demo showing the homomorphism-projection story end-to-end?
+      Partial: `Why` / `Lineage` (`misc.py`) cover the lattice-projection targets, but the full $\mathbb{N}[X]$ polynomial carrier and the homomorphism-projection demo are still missing. First question: a clean end-to-end demo showing one symbolic computation projected to Bool (why-provenance), $\mathbb{N}$ (counting), tropical (trust), and a security lattice.
 
-- [ ] **[Bottleneck / widest-path](https://en.wikipedia.org/wiki/Widest_path_problem)** $(\mathbb{R}, \max, \min)$.
-      *Why:* dual to shortest-path but *not* isomorphic to min-plus — distributivity holds for different reasons. Good teaching example that the semiring axioms don't pin down the "shape" you expect. First question: does our Kleene-star implementation specialize correctly here?
+- [x] **[Bottleneck / widest-path](https://en.wikipedia.org/wiki/Widest_path_problem)** $(\mathbb{R}, \max, \min)$ — `misc.py` (`Bottleneck = maxmin(-inf, +inf)`).
+      Open follow-up: confirm Kleene-star specializes correctly here.
 
-- [ ] **Fuzzy / [Gödel](https://en.wikipedia.org/wiki/T-norm)** $([0,1], \max, \min)$ and **Łukasiewicz** $([0,1], \max, \cdot)$.
-      *Why:* idempotent $\otimes$ in the Gödel case changes which fixed-point iterations converge; concrete bridge to [t-norm fuzzy logic](https://en.wikipedia.org/wiki/T-norm_fuzzy_logics). First question: which metric axioms from `metric()` survive on $[0,1]$?
+- [ ] **[Gödel](https://en.wikipedia.org/wiki/T-norm)** $([0,1], \max, \min)$.
+      Łukasiewicz $([0,1], \max, \cdot)$ is done (`misc.py`, `Lukasiewicz`); Gödel is the remaining t-norm. *Why:* idempotent $\otimes$ changes which fixed-point iterations converge; concrete bridge to [t-norm fuzzy logic](https://en.wikipedia.org/wiki/T-norm_fuzzy_logics). First question: which metric axioms from `metric()` survive on $[0,1]$?
 
-- [ ] **Counting semiring** $(\mathbb{N}, +, \times)$ as its own type, not aliased to `float`.
-      *Why:* derivation counts blow up factorially; exactness is load-bearing for pedagogy (and for catching bugs where someone "counts" in float and doesn't notice). First question: integrate with `cutsets` to count min-cuts exactly.
+- [x] **Counting semiring** $(\mathbb{N}, +, \times)$ as its own type — `count.py` (`Count`, `make_count_k`).
+      Open follow-up: integrate with `cutsets` to count min-cuts exactly.
 
-- [ ] **Viterbi-derivation** — best score paired with its witness derivation, as a proper semiring (not the `lazysort` sorting trick).
-      *Why:* lets us separate "the algebra" from "the implementation." First question: is it actually a semiring, or does the tie-breaking rule sneak in non-associativity?
+- [ ] **Viterbi-derivation** — best score paired with its witness derivation, as a proper semiring (not the `lazysort` sorting trick or the per-class `.d` backpointer field).
+      Currently only the ad-hoc `.d` pattern exists. The planned replacement is `Product(MaxPlus, SelectedDerivation)` from DESIGN Stage 3 (see TODO.md "Pairing framework"). First question: is it actually a semiring, or does the tie-breaking rule sneak in non-associativity?
 
 - [ ] **Free / polynomial semiring over an alphabet** $\mathbb{N}\langle\langle \Sigma^*\rangle\rangle$ — [formal power series](https://en.wikipedia.org/wiki/Formal_power_series).
-      *Why:* the initial object that every other weighted-automaton computation factors through. Gives a clean semantic target for your `regex` / `kleene` modules. First question: what's the right finite representation (truncated-degree? rational expressions?) to make this usable?
+      Partial: `FreeExpr` (`free.py`) is the syntactic free term algebra; no truncated-degree power series or rational-expression carrier yet. First question: what's the right finite representation (truncated-degree? rational expressions?) to make this usable as the "semantic target" for `regex` / `kleene`?
 
-- [ ] **Min-max / max-min on lattices**.
-      *Why:* bottleneck assignment, reliability analysis, capacity planning — all reduce here, and the lattice structure is different enough from the real-line semirings to be instructive. First question: generalize the existing ones to work over any total order.
+- [x] **Min-max / max-min on lattices** — `misc.py` (`minmax`, `maxmin` factories) work over any total order.
 
-- [ ] **Signed log-semiring** — log-space with a sign bit.
-      *Why:* everyone reinvents this (poorly) when doing gradient-like sums in log space with negative contributions. Cataloging it precisely is a small public good. First question: what's the numerically-stable $\oplus$ that handles $\log 0$, sign flips, and near-cancellation together?
+- [x] **Signed log-semiring** — `logval.py` (`LogVal`).
+      Carries a sign bit (`pos`) and uses `log1pexp` / `log1mexp` for the four sign-cases of $\oplus$, with absorbing-zero in $\otimes$. Open follow-up: write up the numerically-stable $\oplus$ recipe — it's the "small public good" entry — and pin it down with axiom-test edge cases (near-cancellation, $\log 0$, sign flips with $\pm\infty$).
 
 ## Applications worth a notebook or writeup
 

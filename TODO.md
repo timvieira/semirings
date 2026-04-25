@@ -1,5 +1,8 @@
 # TODO
 
+## Audit metrics
+- check that each semiring has decent metric implementation
+
 ## Reduce hard dependencies
 - Inline `arsenal` utilities (`log1pexp`/`log1mexp` in `logval.py`, `sorted_union`/`sorted_product` in `lazysort.py`)—they're small enough to vendor
 - Make `regex.py` optional (lazy import) so the core package doesn't require `fsa`/`wfsa`
@@ -27,7 +30,55 @@
 
 ## Other semirings sitting around in other projects
 - Centralize my collection of semirings that are currently scattered across many projects.
-- Missing first- and second-order expectation semirings
+
+## Fill out the GKT 2007 provenance hierarchy
+
+We have `Boolean`, `Count`, `Why`, `Lineage`, and `Bag`, but the universal element of the
+[Green-Karvounarakis-Tannen 2007](https://scholar.google.com/scholar?q=Green+Karvounarakis+Tannen+2007+Provenance+Semirings)
+hierarchy — **`N[X]`**, the polynomial provenance over tuple-IDs — is missing. `N[X]` is
+the *initial* commutative semiring over `X`: every other provenance in the hierarchy
+(`B`, `N`, `Why`, `Lin`, `PosBool`, `B[X]`, `Trio`, security/trust lattice) is a
+homomorphic image of it. Adding it unlocks the "parse once, interpret many" demo.
+
+**Concrete gaps:**
+
+- **`N[X]`** — ℕ-coefficient polynomials over tuple-IDs with monomial collection.
+  This is the headline addition.
+- **`Bag` mismatch.** `bag.py:36-37` tags products as pairs `(x, y)` rather than
+  collecting monomials, so `{a:1} * {a:1} = {(a,a):1}` instead of `{a²:1}`. It's a
+  free-bag-of-traces, not GKT's `N[X]`. Decide: fix it to be `N[X]`, rename it
+  (e.g. `Trace` / `FreeBag`) and add `N[X]` separately, or retire it once `N[X]` lands.
+- **`PosBool[X]`** — positive Boolean expressions over tuple-IDs (idempotent
+  ⊕ and ⊗ with absorption). Natural target for "query without multiplicity."
+- **Named security/trust lattice.** The `minmax` factory already produces it, but
+  the trust/clearance use case is invisible from the README — wrap it as a named
+  class (e.g. `SecurityLattice(levels)` / `Trust(levels)`).
+- **`B[X]`** and **`Trio(X)`** — lower priority; add only if a concrete demo wants them.
+
+**Demo target (the EXPLORE.md provenance entry's "first question"):** one notebook
+that builds a derivation in `N[X]` and projects it homomorphically to `B`, `N`,
+`Why`, `Lin`, `PosBool`, and a trust lattice. Doing the demo will also force the
+`Bag`-vs-`N[X]` decision above.
+
+## Deferred: `forget_multiplicity` / support functor
+
+The homomorphism `FreeClosedSemiring → RegularLanguageSet` (drop ℕ-counts to
+{0,1}, recover the underlying regular language). Drafted and scrutinized in
+`experimental/free_semirings.py`; see the long `DEFERRED:` comment block there
+for the full discussion. Two issues blocked shipping:
+
+1. **ε-arcs** introduced by wfsa concatenation/star require explicit handling;
+   structural mirror leaks them as literal symbols.
+2. **Path cancellation** — the structural mirror is sound only over zerosumfree,
+   zero-divisor-free weight semirings (a "positive cone"). Current `Count` is
+   really ℤ-Count (it has `__sub__`), not ℕ-Count, so even our motivating case
+   isn't safe.
+
+Pickup options (in order of likely value): add a `CountN` carrier and ship the
+structural mirror against it; implement via Hankel-rank zero-test for general
+`R`; or drop it (users can use `RegularLanguageSet` / `fsa.FSA` directly for
+language-level work). Connects to "Audit carrier sets and star conventions"
+below — `Count`-vs-`CountN` is the same flavor of carrier-set ambiguity.
 
 ## Algebra cherry-picks and redirects (DESIGN.md Stage 4 — deferred)
 
@@ -132,8 +183,10 @@ What to do:
    infinite series vs solve fixpoint equations) and also enables tests that
    check, e.g., "if a semiring claims ω-continuity, then `star_approx(x, T)`
    converges monotonically to `star(x)` as T grows." Likely labels to track:
-   `ω-continuous` (MinPlus, MaxPlus, Boolean, Count, LogVal over `[0, +∞]`,
-   MinTimes on `[0, 1]`, MaxTimes on `[0, 1]`), `Conway-only` (Float over ℝ,
+   `ω-continuous` (MinPlus, MaxPlus, Boolean, Count, MinTimes on `[0, 1]`,
+   MaxTimes on `[0, 1]`; **note:** `LogVal` is the *signed* log-semiring, so
+   it's Conway-style on ℝ rather than ω-continuous on `[0, +∞]`),
+   `Conway-only` (Float over ℝ, LogVal over ℝ,
    anything we decide is a field rather than a nonneg-semiring), `neither`
    (ConvexHull on general hulls, Interval), `idempotent` (MinPlus, MaxPlus,
    Boolean, CutSets, Why, Lineage, Bottleneck), `commutative` (most), and so
