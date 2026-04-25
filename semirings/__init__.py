@@ -3,7 +3,7 @@ _float = float
 from semirings.base import Semiring, Chart, Wrapped, make_semiring, \
     check_axioms_samples, check_axioms, check_metric_axioms
 
-from semirings.mert import ConvexHull, Point
+from semirings.convex_hull import ConvexHull, Point
 from semirings.lazysort import LazySort, ShortLex, flatten, make_lazysort_semiring
 from semirings.maxplus import MaxPlus
 from semirings.maxtimes import MaxTimes

@@ -133,10 +133,15 @@ generating function, one a live enumerator over an infinite support.
   shortest-first with lexicographic tiebreaks. Concatenates with `+`.
   Enumerates walks, parses, or any sequence-valued derivation in reading order.
 
-- **`ConvexHull`** (MERT): `+` is convex hull union, `*` is Minkowski sum.
-  Finds the set of optimal derivations under all linear weightings of
-  objectives—used in minimum error rate training for machine translation.
-  Not closed (no `star`); use on DAGs.
+- **`ConvexHull`** (`semirings.convex_hull`): `+` is convex hull union, `*` is
+  Minkowski sum. Finds the set of optimal derivations under all linear
+  weightings of objectives—generalizes MERT (Dyer 2013, originally 2D) to
+  arbitrary dimension `d`. The 2D path uses linear-time monotone-chain union
+  and edge-angle Minkowski merge on canonical CCW polygons; `d ∉ {1, 2}`
+  falls back to qhull, with an SVD projection for inputs that lie in a
+  lower-dim affine subspace. Has a `draw()` method for `d ∈ {1, 2, 3}`. Not
+  closed (no `star`); use on DAGs. The legacy 2D-only implementation is kept
+  in `semirings.mert` for reference.
 
 - **`Pareto`** / `make_pareto(d)`: Pareto-frontier semiring (min convention,
   arbitrary dimension `d`). `+` is union pruned to non-dominated points, `*`
