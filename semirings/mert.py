@@ -19,6 +19,15 @@ class ConvexHull(Semiring):
 
     Each element is a convex hull of Points. Based on Chris Dyer's 2013 arxiv
     paper (http://arxiv.org/pdf/1307.3675.pdf). Coded for clarity, not efficiency.
+
+
+    See also Iwano and Steiglitz (1990). "A Semiring on Convex Polygons and
+    Zero-Sum Cycle Problems"
+      Published version: https://epubs.siam.org/doi/10.1137/0219061
+
+      Tech report version:
+      https://www.cs.princeton.edu/techreports/1986/053.pdf
+
     """
 
     def __init__(self, points):
