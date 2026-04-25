@@ -591,6 +591,159 @@ def test_convex_hull():
     )
 
 
+def test_convex_hull_plot_smoke():
+    plotly = pytest.importorskip('plotly')
+    h1 = ConvexHull([Point(0.0), Point(1.0), Point(3.0)])
+    h2 = ConvexHull([Point(0,0), Point(2,0), Point(2,2), Point(0,2)])
+    h3 = ConvexHull([Point(0,0,0), Point(1,0,0), Point(0,1,0), Point(0,0,1)])
+    for fig in (h1.plot(), h2.plot(), h3.plot()):
+        assert isinstance(fig, plotly.graph_objects.Figure)
+        assert len(fig.data) >= 1
+    ConvexHull.zero.plot()
+    h4 = ConvexHull([Point(0,0,0,0), Point(1,1,1,1)])
+    with pytest.raises(NotImplementedError):
+        h4.plot()
+
+
+# --- d-dimensional ConvexHull (semirings.convex_hull) -----------------------
+
+from semirings.convex_hull import ConvexHull as CHnd, Point as PointND
+import scipy.spatial
+
+
+def _brute_hull_coords(coords):
+    arr = np.array(coords, dtype=float)
+    h = scipy.spatial.ConvexHull(arr)
+    return {tuple(arr[i]) for i in h.vertices}
+
+
+def test_convex_hull_nd_axioms_2d():
+    check_axioms(
+        CHnd,
+        CHnd([PointND(1, 1.5), PointND(2, 1.75), PointND(3, 4), PointND(0, 0)]),
+        CHnd([PointND(2, 2)]),
+        CHnd([PointND(-1, 0), PointND(1, 10), PointND(3, -2)]),
+        star=False,
+    )
+
+
+def test_convex_hull_nd_axioms_3d():
+    # Tetrahedron, singleton, and another tetrahedron — exercises the d>=3
+    # qhull path including distributivity (which broke under QJ joggle).
+    check_axioms(
+        CHnd,
+        CHnd([PointND(1,0,0), PointND(0,1,0), PointND(0,0,1), PointND(1,1,1)]),
+        CHnd([PointND(2,2,2)]),
+        CHnd([PointND(-1,-1,-1), PointND(1,-1,-1), PointND(-1,1,-1), PointND(-1,-1,1)]),
+        star=False,
+    )
+
+
+def test_convex_hull_nd_axioms_1d():
+    check_axioms(
+        CHnd,
+        CHnd([PointND(1.0), PointND(3.0), PointND(5.0)]),
+        CHnd([PointND(2.0)]),
+        CHnd([PointND(-1.0), PointND(4.0)]),
+        star=False,
+    )
+
+
+def test_convex_hull_nd_2d_fast_paths_match_brute_force():
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        n, m = int(rng.integers(3, 12)), int(rng.integers(3, 12))
+        A = CHnd([PointND(*rng.uniform(-5, 5, size=2)) for _ in range(n)])
+        B = CHnd([PointND(*rng.uniform(-5, 5, size=2)) for _ in range(m)])
+        # Minkowski (`*`): vetted-vertex fast path vs all-pairs + qhull
+        pair_sums = [(a.coords[0]+b.coords[0], a.coords[1]+b.coords[1])
+                     for a in A.points for b in B.points]
+        assert {p.coords for p in (A * B).points} == _brute_hull_coords(pair_sums)
+        # Union (`+`): chain-merge vs hull-of-concatenated-vertex-sets
+        union_pts = [p.coords for p in A.points] + [p.coords for p in B.points]
+        if len(union_pts) >= 3:
+            assert {p.coords for p in (A + B).points} == _brute_hull_coords(union_pts)
+
+
+def test_convex_hull_nd_3d_minkowski_matches_brute_force():
+    rng = np.random.default_rng(1)
+    for _ in range(5):
+        n, m = int(rng.integers(4, 9)), int(rng.integers(4, 9))
+        A = CHnd([PointND(*rng.uniform(-3, 3, size=3)) for _ in range(n)])
+        B = CHnd([PointND(*rng.uniform(-3, 3, size=3)) for _ in range(m)])
+        pair_sums = [(a.coords[0]+b.coords[0], a.coords[1]+b.coords[1],
+                      a.coords[2]+b.coords[2]) for a in A.points for b in B.points]
+        assert {p.coords for p in (A * B).points} == _brute_hull_coords(pair_sums)
+
+
+def test_convex_hull_nd_canonical_2d_layout():
+    # 2D vertices should be CCW from the leftmost-lowest point — the fast
+    # paths' invariant.
+    h = CHnd([PointND(3, 3), PointND(0, 0), PointND(2, 0), PointND(0, 2),
+              PointND(1, 1)])  # (1,1) is interior, drops out
+    coords = [p.coords for p in h.points]
+    assert coords[0] == min(coords)              # leftmost-lowest at index 0
+    assert (1, 1) not in coords                  # interior point pruned
+    # Signed area > 0 ⇒ CCW
+    area = sum(coords[i][0] * coords[(i+1) % len(coords)][1]
+               - coords[(i+1) % len(coords)][0] * coords[i][1]
+               for i in range(len(coords)))
+    assert area > 0
+
+
+def test_convex_hull_nd_origin_singleton_is_identity_any_dim():
+    # Default cls.one is a 2D origin singleton, but `*` recognises an
+    # origin-singleton of any dim as the identity (structural check).
+    one_3d = CHnd([PointND(0, 0, 0)])
+    h = CHnd([PointND(1,0,0), PointND(0,1,0), PointND(0,0,1)])
+    assert h * one_3d == h
+    assert one_3d * h == h
+
+
+def test_convex_hull_nd_lower_dim_input_in_3d():
+    # Four coplanar points in 3D: scipy.spatial.ConvexHull raises QhullError
+    # without QJ; the SVD-projection fallback returns all four as vertices
+    # of the (degenerate) 2D hull embedded in 3D.
+    h = CHnd([PointND(0,0,0), PointND(1,0,0), PointND(1,1,0), PointND(0,1,0)])
+    assert {p.coords for p in h.points} == {(0,0,0), (1,0,0), (1,1,0), (0,1,0)}
+
+
+def test_convex_hull_nd_point_dim_and_accessors():
+    p = PointND(1, 2, 3)
+    assert p.dim == 3 and (p.x, p.y, p.z) == (1, 2, 3)
+    # Sequence input also accepted
+    assert PointND([4, 5]).coords == (4, 5)
+    # Equality and hashing ignore the derivation backpointer
+    a, b = PointND(1, 2, d='a'), PointND(1, 2, d='b')
+    assert a == b and hash(a) == hash(b)
+
+
+def test_convex_hull_nd_star_raises():
+    with pytest.raises(NotImplementedError):
+        CHnd([PointND(1, 1), PointND(2, 3)]).star()
+
+
+def test_convex_hull_nd_metric():
+    # Identity, empty-handling, and a checkable translation distance.
+    h = CHnd([PointND(0,0), PointND(2,0), PointND(2,2), PointND(0,2)])
+    assert h.metric(h) == 0.0
+    assert CHnd.zero.metric(CHnd.zero) == 0.0
+    assert CHnd.zero.metric(h) == float('inf')
+    # Translating by (3, 0) ⇒ Hausdorff = 3 under L_inf.
+    h_shifted = CHnd([PointND(3,0), PointND(5,0), PointND(5,2), PointND(3,2)])
+    assert h.metric(h_shifted) == 3.0
+    assert h.metric(h_shifted) == h_shifted.metric(h)  # symmetry
+    # Full metric-axiom sweep on a small sample (incl. zero, two unit squares,
+    # and a translated triangle).
+    samples = [
+        CHnd.zero,
+        h,
+        h_shifted,
+        CHnd([PointND(0,0), PointND(1,0), PointND(0,1)]),
+    ]
+    check_metric_axioms(CHnd, samples)
+
+
 def test_star_operations():
     Float.assert_equal(Float.star(1), np.inf)
     MinTimes.assert_equal(MinTimes(-1).star(), MinTimes(-np.inf))
@@ -1237,7 +1390,7 @@ def test_weighted_graph_scc():
 def test_pareto_behavior():
     # Construction prunes dominated points and dedupes.
     p = Pareto([(1, 2), (2, 1), (3, 3), (1, 2)])    # (3,3) dominated; dup (1,2)
-    assert p.points == ((1, 2), (2, 1))
+    assert tuple(pt.coords for pt in p.points) == ((1, 2), (2, 1))
 
     # Dimension is enforced.
     with pytest.raises(ValueError):
@@ -1247,8 +1400,8 @@ def test_pareto_behavior():
     P3 = make_pareto(3)
     assert P3.dim == 3
     assert P3.zero.points == ()
-    assert P3.one.points == ((0, 0, 0),)
-    assert P3([(1, 0, 0), (0, 1, 0)]).points == ((0, 1, 0), (1, 0, 0))
+    assert tuple(pt.coords for pt in P3.one.points) == ((0, 0, 0),)
+    assert tuple(pt.coords for pt in P3([(1, 0, 0), (0, 1, 0)]).points) == ((0, 1, 0), (1, 0, 0))
 
     # 1D collapses to a min: any non-negative singleton's star is one.
     P1 = make_pareto(1)
@@ -1259,6 +1412,19 @@ def test_pareto_behavior():
     # rather than spinning forever.
     with pytest.raises(ValueError):
         Pareto([(1, -1), (-1, 1)]).star()
+
+
+def test_pareto_backpointer_recovery():
+    # Each surviving Point on the frontier records the (left, right) Points
+    # whose Minkowski sum produced it — same mechanism as ConvexHull.
+    from semirings.convex_hull import Point
+    a = Pareto([Point(3, 1, d='a1'), Point(1, 3, d='a2')])
+    b = Pareto([Point(0, 4, d='b1'), Point(4, 0, d='b2')])
+    prod = a * b
+    by_coords = {pt.coords: pt for pt in prod.points}
+    # (3, 5) comes from a1 + b1; (5, 3) from a2 + b2 (the cross sums dominate).
+    assert by_coords[(3, 5)].d == (Point(3, 1, d='a1'), Point(0, 4, d='b1'))
+    assert by_coords[(5, 3)].d == (Point(1, 3, d='a2'), Point(4, 0, d='b2'))
 
 
 def test_pareto_metric_axioms():
@@ -1299,7 +1465,7 @@ def test_pareto_with_weighted_graph():
     g['s', 'b'] = Pareto([(1, 3)])
     g['b', 't'] = Pareto([(4, 0)])
     closure = g.star()
-    assert set(closure['s', 't'].points) == {(3, 5), (5, 3)}
+    assert {pt.coords for pt in closure['s', 't'].points} == {(3, 5), (5, 3)}
 
 
 if __name__ == '__main__':

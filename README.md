@@ -139,16 +139,21 @@ generating function, one a live enumerator over an infinite support.
   arbitrary dimension `d`. The 2D path uses linear-time monotone-chain union
   and edge-angle Minkowski merge on canonical CCW polygons; `d ∉ {1, 2}`
   falls back to qhull, with an SVD projection for inputs that lie in a
-  lower-dim affine subspace. Has a `draw()` method for `d ∈ {1, 2, 3}`. Not
-  closed (no `star`); use on DAGs. The legacy 2D-only implementation is kept
-  in `semirings.mert` for reference.
+  lower-dim affine subspace. Has a matplotlib `draw()` method and a plotly
+  `plot()` method (filled polygons / Mesh3d faces with hover tooltips) for
+  `d ∈ {1, 2, 3}`. Not closed (no `star`); use on DAGs. The legacy 2D-only
+  implementation is kept in `semirings.mert` for reference.
 
 - **`Pareto`** / `make_pareto(d)`: Pareto-frontier semiring (min convention,
   arbitrary dimension `d`). `+` is union pruned to non-dominated points, `*`
-  is Minkowski sum pruned the same way. Closed on non-negative inputs (star
-  collapses to `one`); open part of the carrier (mixed-sign coordinates) can
-  diverge, in which case `star` raises after a bounded fixpoint loop. Has a
-  `plot()` method (plotly, optional) for `d` in {1, 2, 3} with hover tooltips.
+  is Minkowski sum pruned the same way. Elements are antichains of `Point`s
+  (shared with `ConvexHull`); `__init__` accepts either `Point`s or bare
+  coordinate tuples, and surviving points carry the derivation backpointer
+  built up by Minkowski sums—so the frontier doubles as an argmin record.
+  Closed on non-negative inputs (star collapses to `one`); open part of the
+  carrier (mixed-sign coordinates) can diverge, in which case `star` raises
+  after a bounded fixpoint loop. Has a `plot()` method (plotly, optional)
+  for `d` in {1, 2, 3} with hover tooltips.
 
 ### Arithmetic & Probabilities
 

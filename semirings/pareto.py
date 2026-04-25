@@ -1,8 +1,10 @@
 """Pareto-frontier semiring (min convention, arbitrary dimension).
 
-Elements are antichains of d-tuples under componentwise dominance: a point p
+Elements are antichains of `Point`s under componentwise dominance: a point p
 dominates q iff p_i <= q_i for all i with at least one strict inequality.
-The semiring keeps only non-dominated points.
+The semiring keeps only non-dominated points; each surviving `Point` carries
+the derivation backpointer assembled by `Point.__add__` during Minkowski
+sums, so the antichain doubles as an argmin record.
 
   +    : union, pruned to Pareto-minimal
   *    : Minkowski sum (componentwise add), pruned to Pareto-minimal
@@ -18,28 +20,39 @@ Use `make_pareto(d)` to build a class for a specific dimension. The default
 """
 
 from semirings.base import Semiring
+from semirings.convex_hull import Point, _directed_hausdorff
 
 
 _STAR_MAX_ITER = 64
 
 
+def _lift(p):
+    return p if isinstance(p, Point) else Point(tuple(p))
+
+
 def _prune_min(points):
-    """Return the Pareto-minimal subset of `points`, sorted canonically."""
-    pts = list({tuple(p) for p in points})
+    """Return the Pareto-minimal subset of `points`, sorted canonically.
+
+    Dedup is keyed on coords (Point's __eq__/__hash__ already are), so
+    distinct derivations producing the same coords collapse to whichever
+    arrived first.
+    """
+    seen = {}
+    for p in points:
+        seen.setdefault(p.coords, p)
+    pts = list(seen.values())
     if not pts:
         return ()
-    keep = []
-    for p in pts:
-        if not any(_dominates(q, p) for q in pts if q != p):
-            keep.append(p)
-    return tuple(sorted(keep))
+    keep = [p for p in pts
+            if not any(_dominates(q, p) for q in pts if q.coords != p.coords)]
+    return tuple(sorted(keep, key=lambda p: p.coords))
 
 
 def _dominates(p, q):
     """True iff `p` strictly Pareto-dominates `q` (min convention)."""
     le = True
     strict = False
-    for a, b in zip(p, q):
+    for a, b in zip(p.coords, q.coords):
         if a > b:
             le = False
             break
@@ -55,11 +68,11 @@ def make_pareto(d, name=None):
         dim = d
 
         def __init__(self, points=()):
-            pts = tuple(tuple(p) for p in points)
+            pts = [_lift(p) for p in points]
             for p in pts:
-                if len(p) != d:
+                if p.dim != d:
                     raise ValueError(
-                        f'expected {d}-tuples, got {len(p)}-tuple {p}'
+                        f'expected {d}-dim points, got {p.dim}-dim {p.coords}'
                     )
             self.points = _prune_min(pts)
 
@@ -88,15 +101,12 @@ def make_pareto(d, name=None):
                 return NotImplemented
             if not self.points or not other.points:
                 return _Pareto.zero
-            return _Pareto([
-                tuple(a + b for a, b in zip(p, q))
-                for p in self.points for q in other.points
-            ])
+            return _Pareto([p + q for p in self.points for q in other.points])
 
         def star(self):
             # Fast path: if every point has all non-negative coords, the
             # origin (= one) dominates every Minkowski iterate.
-            if all(c >= 0 for p in self.points for c in p):
+            if all(c >= 0 for p in self.points for c in p.coords):
                 return _Pareto.one
             # Bounded fixpoint iteration for the general case.
             prev = _Pareto.zero
@@ -124,8 +134,8 @@ def make_pareto(d, name=None):
                 return 0.0
             if not self.points or not other.points:
                 return float('inf')
-            return max(_hausdorff(self.points, other.points),
-                       _hausdorff(other.points, self.points))
+            return max(_directed_hausdorff(self.points, other.points),
+                       _directed_hausdorff(other.points, self.points))
 
         def plot(self, title=None, color='#1f77b4', marker_size=10,
                  show_origin=True, labels=None):
@@ -143,11 +153,6 @@ def make_pareto(d, name=None):
     _Pareto.zero = _Pareto([])
     _Pareto.one = _Pareto([(0,) * d])
     return _Pareto
-
-
-def _hausdorff(A, B):
-    """Directed Hausdorff distance: sup_{a in A} inf_{b in B} ||a-b||_inf."""
-    return max(min(max(abs(x - y) for x, y in zip(a, b)) for b in B) for a in A)
 
 
 def _plot(P, title, color, marker_size, show_origin, labels):
@@ -180,12 +185,12 @@ def _plot(P, title, color, marker_size, show_origin, labels):
 
 
 def _hover(label, point):
-    coords = ', '.join(f'{x:g}' for x in point)
+    coords = ', '.join(f'{x:g}' for x in point.coords)
     return f'{label}<br>({coords})'
 
 
 def _plot_1d(go, pts, labels, title, color, marker_size, show_origin, P):
-    xs = [p[0] for p in pts]
+    xs = [p.coords[0] for p in pts]
     fig = go.Figure(go.Scatter(
         x=xs, y=[0] * len(xs), mode='markers+text',
         marker=dict(size=marker_size, color=color, line=dict(width=1, color='white')),
@@ -204,9 +209,9 @@ def _plot_1d(go, pts, labels, title, color, marker_size, show_origin, P):
 
 
 def _plot_2d(go, pts, labels, title, color, marker_size, show_origin, P):
-    pts_sorted = sorted(pts)
-    xs = [p[0] for p in pts_sorted]
-    ys = [p[1] for p in pts_sorted]
+    pts_sorted = sorted(pts, key=lambda p: p.coords)
+    xs = [p.coords[0] for p in pts_sorted]
+    ys = [p.coords[1] for p in pts_sorted]
     label_map = {p: l for l, p in zip(labels, pts)}
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -235,9 +240,9 @@ def _plot_2d(go, pts, labels, title, color, marker_size, show_origin, P):
 
 
 def _plot_3d(go, pts, labels, title, color, marker_size, show_origin, P):
-    xs = [p[0] for p in pts]
-    ys = [p[1] for p in pts]
-    zs = [p[2] for p in pts]
+    xs = [p.coords[0] for p in pts]
+    ys = [p.coords[1] for p in pts]
+    zs = [p.coords[2] for p in pts]
     fig = go.Figure(go.Scatter3d(
         x=xs, y=ys, z=zs, mode='markers+text',
         marker=dict(size=marker_size, color=color, line=dict(width=1, color='white')),

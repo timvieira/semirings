@@ -49,6 +49,10 @@ class Point:
     def __repr__(self):
         return str(self.d) if self.d is not None else f'Point{self.coords}'
 
+    def metric(self, other):
+        """Chebyshev (L_inf) distance: max coordinate-wise |a - b|."""
+        return max(abs(a - b) for a, b in zip(self.coords, other.coords))
+
 
 class ConvexHull(Semiring):
     """Convex-hull semiring in R^d.
@@ -118,8 +122,35 @@ class ConvexHull(Semiring):
     def star(self):
         raise NotImplementedError("star diverges for nontrivial hulls")
 
+    def metric(self, other):
+        """Hausdorff distance with Chebyshev (L_inf) ground metric.
+
+        Returns 0 for equal hulls, +inf when exactly one side is empty
+        (otherwise identity-of-indiscernibles would fail). For convex
+        polytopes the max distance to the other set is attained at a vertex
+        of self, so iterating over `self.points`/`other.points` is exact.
+        """
+        if not isinstance(other, ConvexHull):
+            return float('inf')
+        if self.points == other.points:
+            return 0.0
+        if not self.points or not other.points:
+            return float('inf')
+        return max(_directed_hausdorff(self.points, other.points),
+                   _directed_hausdorff(other.points, self.points))
+
     def draw(self, label_fmt=None, c='k', ax=None):
         return _draw(self, label_fmt, c, ax)
+
+    def plot(self, title=None, color='#1f77b4', marker_size=8, opacity=0.18,
+             labels=None):
+        """Plotly figure for d in {1, 2, 3}; raises otherwise.
+
+        Hover tooltips show the full coordinate tuple plus an optional
+        user-supplied label (one per vertex, in `self.points` order).
+        """
+        return _plot(self, title=title, color=color, marker_size=marker_size,
+                     opacity=opacity, labels=labels)
 
 
 def _is_origin_singleton(h):
@@ -335,6 +366,129 @@ def _draw(hull, label_fmt, c, ax):  # pragma: no cover
                 faces, alpha=0.2, edgecolor=c, facecolor=c, linewidth=0.5))
         for p in hull.points:
             ax.text(p.coords[0], p.coords[1], p.coords[2], label(p))
+
+
+# --- metric -------------------------------------------------------------------
+
+def _directed_hausdorff(A, B):
+    """sup_{a in A} inf_{b in B} a.metric(b) over `Point` iterables."""
+    return max(min(a.metric(b) for b in B) for a in A)
+
+
+# --- plotly visualization -----------------------------------------------------
+
+def _plot(hull, title, color, marker_size, opacity, labels):
+    try:
+        import plotly.graph_objects as go
+    except ImportError as e:
+        raise ImportError('plot() requires plotly: pip install plotly') from e
+
+    pts = list(hull.points)
+    if not pts:
+        fig = go.Figure()
+        fig.update_layout(title=title or f'{type(hull).__name__}: empty')
+        return fig
+
+    if labels is None:
+        labels = [f'p{i}' for i in range(len(pts))]
+    elif len(labels) != len(pts):
+        raise ValueError(f'expected {len(pts)} labels, got {len(labels)}')
+
+    d = hull.dim
+    if d == 1: return _plot_1d(go, pts, labels, title, color, marker_size, hull)
+    if d == 2: return _plot_2d(go, pts, labels, title, color, marker_size, opacity, hull)
+    if d == 3: return _plot_3d(go, pts, labels, title, color, marker_size, opacity, hull)
+    raise NotImplementedError(f'plot() supports d in {{1,2,3}}; got d={d}')
+
+
+def _hover(label, point):
+    return f'{label}<br>({", ".join(f"{x:g}" for x in point.coords)})'
+
+
+def _plot_1d(go, pts, labels, title, color, marker_size, hull):
+    xs = [p.coords[0] for p in pts]
+    fig = go.Figure()
+    if len(xs) >= 2:
+        fig.add_trace(go.Scatter(
+            x=[min(xs), max(xs)], y=[0, 0], mode='lines',
+            line=dict(color=color, width=1), hoverinfo='skip', showlegend=False,
+        ))
+    fig.add_trace(go.Scatter(
+        x=xs, y=[0] * len(xs), mode='markers+text',
+        marker=dict(size=marker_size, color=color, line=dict(width=1, color='white')),
+        text=labels, textposition='top center',
+        hovertext=[_hover(l, p) for l, p in zip(labels, pts)],
+        hoverinfo='text', name='hull',
+    ))
+    fig.update_layout(
+        title=title or f'{type(hull).__name__} ({len(pts)} pts)',
+        xaxis_title='x', yaxis=dict(visible=False, range=[-1, 1]),
+        height=200, showlegend=False,
+    )
+    return fig
+
+
+def _plot_2d(go, pts, labels, title, color, marker_size, opacity, hull):
+    # `pts` is canonical CCW; close the polygon for the fill trace.
+    xs = [p.coords[0] for p in pts]
+    ys = [p.coords[1] for p in pts]
+    fig = go.Figure()
+    if len(pts) >= 3:
+        fig.add_trace(go.Scatter(
+            x=xs + [xs[0]], y=ys + [ys[0]], mode='lines', fill='toself',
+            line=dict(color=color, width=1), fillcolor=color, opacity=opacity,
+            hoverinfo='skip', showlegend=False,
+        ))
+    elif len(pts) == 2:
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys, mode='lines',
+            line=dict(color=color, width=1), hoverinfo='skip', showlegend=False,
+        ))
+    fig.add_trace(go.Scatter(
+        x=xs, y=ys, mode='markers+text',
+        marker=dict(size=marker_size, color=color, line=dict(width=1, color='white')),
+        text=labels, textposition='top right',
+        hovertext=[_hover(l, p) for l, p in zip(labels, pts)],
+        hoverinfo='text', name='hull',
+    ))
+    fig.update_layout(
+        title=title or f'{type(hull).__name__} ({len(pts)} pts)',
+        xaxis_title='x', yaxis_title='y',
+        height=420, width=480, showlegend=False,
+    )
+    fig.update_yaxes(scaleanchor='x', scaleratio=1)
+    return fig
+
+
+def _plot_3d(go, pts, labels, title, color, marker_size, opacity, hull):
+    coords = np.array([p.coords for p in pts], dtype=float)
+    xs, ys, zs = coords[:, 0], coords[:, 1], coords[:, 2]
+    fig = go.Figure()
+    if len(pts) >= 4:
+        try:
+            sc = scipy.spatial.ConvexHull(coords)
+            i, j, k = sc.simplices.T
+            fig.add_trace(go.Mesh3d(
+                x=xs, y=ys, z=zs, i=i, j=j, k=k,
+                color=color, opacity=opacity, flatshading=True,
+                hoverinfo='skip', showlegend=False,
+            ))
+        except scipy.spatial.QhullError:
+            pass
+    fig.add_trace(go.Scatter3d(
+        x=xs, y=ys, z=zs, mode='markers+text',
+        marker=dict(size=max(3, marker_size // 2), color=color,
+                    line=dict(width=1, color='white')),
+        text=labels,
+        hovertext=[_hover(l, p) for l, p in zip(labels, pts)],
+        hoverinfo='text', name='hull',
+    ))
+    fig.update_layout(
+        title=title or f'{type(hull).__name__} ({len(pts)} pts)',
+        scene=dict(xaxis_title='x', yaxis_title='y', zaxis_title='z'),
+        height=520, width=560, showlegend=False,
+    )
+    return fig
 
 
 _zero = ConvexHull((), _vetted=True)
