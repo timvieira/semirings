@@ -64,7 +64,7 @@ class LogVal(base.Semiring):
         self.ell = ell
 
     @classmethod
-    def lift(cls, x):
+    def lift(cls, x, _=None):
         return cls(x >= 0, log(abs(x)))
 
     def __eq__(self, other):

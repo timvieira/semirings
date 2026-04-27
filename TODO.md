@@ -1,5 +1,8 @@
 # TODO
 
+## Misc
+- retire `approx_zero`
+
 ## Audit metrics
 - check that each semiring has decent metric implementation
 
