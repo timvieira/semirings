@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Graduate Descent</title>
+  
+
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap"
+        rel="stylesheet">
+
+  <meta name="author" content="Tim Vieira">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="../favicon.png" rel="icon">
+  <link rel="alternate" type="application/atom+xml" title="Graduate Descent Atom Feed" href="../atom.xml">
+  <link rel="stylesheet" href="../pygments.css">
+
+  <link rel="stylesheet" href="/blog/css/blog.css">
+
+  <!-- MathJax 3 -->
+  <script>
+    window.MathJax = {
+      startup: {
+        typeset: false,    // We typeset manually after all widgets have built their DOM
+        ready: function() {
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(function() {
+            // Typeset the full page once MathJax is ready
+            MathJax.typesetPromise();
+          });
+        }
+      },
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true,
+        
+      },
+      chtml: {
+        scale: 1,
+      },
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+<body>
+  <header role="banner"><hgroup>
+    <h1><a href="https://timvieira.github.io/blog/">Graduate Descent</a></h1>
+    <nav role="navigation">
+      <a href="https://timvieira.github.io/">About</a>
+      <a href="https://timvieira.github.io/blog/">Archive</a>
+    </nav>
+  </hgroup></header>
+  <div id="main">
+    <div id="content">
+
+
+
+<div>
+  <article role="article">
+    <header>
+      <h1 class="entry-title">Articles</h1>
+    </header>
+
+    <div id="blog-archives">
+      
+        
+        
+          <h2>2026</h2>
+        
+        <article data-tags="semirings,algorithms,dynamic-programming">
+          <h1 style="view-transition-name: title-semirings-a-powerful-abstraction-for-dynamic-programming"><a href="../semirings-a-powerful-abstraction-for-dynamic-programming/">Semirings: A Powerful Abstraction for Dynamic Programming</a></h1>
+          <time datetime="2026-11-07T00:00:00" pubdate>
+            <span class="month">Nov</span>
+            <span class="day">07</span>
+            <span class="year">2026</span>
+          </time>
+          <footer>
+            <span class="tags">
+              <a class="tag" href="#" onclick="filterByTag('semirings'); return false;">semirings</a>
+              <a class="tag" href="#" onclick="filterByTag('algorithms'); return false;">algorithms</a>
+              <a class="tag" href="#" onclick="filterByTag('dynamic-programming'); return false;">dynamic-programming</a>
+              
+            </span>
+          </footer>
+        </article>
+      
+    </div>
+  </article>
+</div>
+
+
+
+      
+      <aside class="sidebar">
+        <section>
+          <h1>Tags</h1>
+          
+        </section>
+      </aside>
+      
+    </div>
+  </div>
+  <footer role="contentinfo"></footer>
+  <!--
+  
+  -->
+  
+  <script>
+    window._activeTags = new Set();
+
+    function filterByTag(tag) {
+      var tags = window._activeTags;
+      if (tags.has(tag)) {
+        tags.delete(tag);
+      } else {
+        tags.add(tag);
+      }
+
+      // Step 1: Update tag highlights immediately
+      var noFilter = tags.size === 0;
+      document.querySelectorAll('.tag').forEach(function(el) {
+        el.classList.toggle('active', tags.has(el.textContent.trim()));
+      });
+
+      // Step 2: After tags visually update, start fading articles
+      setTimeout(function() {
+        var archives = document.getElementById('blog-archives');
+        var articles = archives.querySelectorAll('article');
+        var headers = archives.querySelectorAll('h2');
+
+        // Determine which articles match
+        var toHide = [];
+        var toShow = [];
+        articles.forEach(function(a) {
+          var aTags = a.getAttribute('data-tags').split(',');
+          var match = noFilter || Array.from(tags).every(function(t) { return aTags.indexOf(t) >= 0; });
+          if (!match && !a.classList.contains('hidden')) {
+            toHide.push(a);
+          } else if (match && a.classList.contains('hidden')) {
+            toShow.push(a);
+          }
+        });
+
+        // Fade out items that should hide
+        toHide.forEach(function(a) { a.classList.add('fading'); });
+
+        // After fade completes, collapse hidden and reveal new ones
+        setTimeout(function() {
+          toHide.forEach(function(a) {
+            a.classList.add('hidden');
+            a.classList.remove('fading');
+          });
+
+          // Show items that should appear (start faded, then fade in)
+          toShow.forEach(function(a) {
+            a.classList.add('fading');
+            a.classList.remove('hidden');
+          });
+          // Force reflow before removing fading class
+          if (toShow.length) archives.offsetHeight;
+          requestAnimationFrame(function() {
+            toShow.forEach(function(a) { a.classList.remove('fading'); });
+          });
+
+          // Update year headers
+          headers.forEach(function(h) {
+            var next = h.nextElementSibling;
+            var hasVisible = false;
+            while (next && next.tagName !== 'H2') {
+              if (next.tagName === 'ARTICLE' && !next.classList.contains('hidden')) hasVisible = true;
+              next = next.nextElementSibling;
+            }
+            h.classList.toggle('hidden', !hasVisible);
+          });
+
+          // Disable tags that would yield no results if added
+          var availableTags = new Set();
+          articles.forEach(function(a) {
+            if (!a.classList.contains('hidden')) {
+              a.getAttribute('data-tags').split(',').forEach(function(t) { availableTags.add(t); });
+            }
+          });
+          if (noFilter) {
+            document.querySelectorAll('.tag').forEach(function(el) { el.classList.remove('disabled'); });
+          } else {
+            tags.forEach(function(t) { availableTags.add(t); });
+            document.querySelectorAll('.tag').forEach(function(el) {
+              el.classList.toggle('disabled', !availableTags.has(el.textContent.trim()));
+            });
+          }
+        }, 250);
+
+        // Update URL hash
+        if (tags.size > 0) {
+          history.replaceState(null, '', '#tags=' + Array.from(tags).map(encodeURIComponent).join(','));
+        } else {
+          history.replaceState(null, '', location.pathname);
+        }
+      }, 150);
+    }
+
+    // Apply filter from URL hash on load (no animation)
+    (function() {
+      var m = location.hash.match(/tags?=([^&]+)/);
+      if (m) {
+        m[1].split(',').forEach(function(t) { window._activeTags.add(decodeURIComponent(t)); });
+        var tags = window._activeTags;
+        var archives = document.getElementById('blog-archives');
+        var articles = archives.querySelectorAll('article');
+        var headers = archives.querySelectorAll('h2');
+        document.querySelectorAll('.tag').forEach(function(el) {
+          el.classList.toggle('active', tags.has(el.textContent.trim()));
+        });
+        articles.forEach(function(a) {
+          var aTags = a.getAttribute('data-tags').split(',');
+          var match = Array.from(tags).every(function(t) { return aTags.indexOf(t) >= 0; });
+          if (!match) a.classList.add('hidden');
+        });
+        headers.forEach(function(h) {
+          var next = h.nextElementSibling;
+          var hasVisible = false;
+          while (next && next.tagName !== 'H2') {
+            if (next.tagName === 'ARTICLE' && !next.classList.contains('hidden')) hasVisible = true;
+            next = next.nextElementSibling;
+          }
+          if (!hasVisible) h.classList.add('hidden');
+        });
+        var availableTags = new Set();
+        articles.forEach(function(a) {
+          if (!a.classList.contains('hidden')) {
+            a.getAttribute('data-tags').split(',').forEach(function(t) { availableTags.add(t); });
+          }
+        });
+        tags.forEach(function(t) { availableTags.add(t); });
+        document.querySelectorAll('.tag').forEach(function(el) {
+          el.classList.toggle('disabled', !availableTags.has(el.textContent.trim()));
+        });
+      }
+    })();
+  </script>
+  
+<script>
+// Toggle sidenotes on narrow screens
+document.querySelectorAll('.sidenote-number').forEach(function(el) {
+  el.addEventListener('click', function() {
+    el.classList.toggle('active');
+  });
+});
+</script>
+</body>
+</html>

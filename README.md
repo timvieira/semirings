@@ -16,6 +16,10 @@ By swapping the semiring, the *same* algorithm computes something entirely
 different—and this library gives you a rich collection of semirings to swap
 in.
 
+## Documentation
+
+The [documentation page](https://timvieira.github.io/semirings/) introduces semirings and walks through a compendium of them, each linked to its implementation here.  Every `>>>` example on the page runs as part of the test suite (`tests/test_docs.py`), so the docs stay in sync with the code.  The page's source is `content/semirings.md`; build it with the `blog` CLI from [timvieira/blog](https://github.com/timvieira/blog) (`blog build`, output in `docs/`).
+
 ## Installation
 
 ```bash
@@ -27,7 +31,7 @@ pip install git+https://github.com/timvieira/semirings
 Here is a tiny weighted graph — two nodes, three edges, a self-loop on `a` and
 a cycle `a ⇄ b`:
 
-![Fibonacci graph](docs/fibonacci-graph.png)
+![Fibonacci graph](docs/images/fibonacci-graph.png)
 
 There are infinitely many walks from `a` back to `a`: the empty walk, the
 self-loop, the detour through `b`, and arbitrary combinations. `WeightedGraph`

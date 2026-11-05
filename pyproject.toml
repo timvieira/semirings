@@ -48,3 +48,12 @@ ignore = ["E701", "E702", "E741"]
 "__init__.py" = ["F401", "F403", "F405", "E402"]
 "experimental/*" = ["E402"]
 "semirings/misc.py" = ["E402", "E731"]
+
+# Documentation page (content/semirings.md), built with the `blog` CLI from
+# timvieira/blog (`blog build`, or `blog dev` to preview) into docs/, which
+# GitHub Pages serves.  docs/ is wiped on each build, so images live in
+# content/images/.  The page's `>>>` examples run in tests/test_docs.py.
+[tool.blog]
+content = "content"
+output = "docs"
+static = ["images"]

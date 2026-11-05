@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+<head>
+  <meta charset="utf-8">
+  
+  <title>Semirings: A Powerful Abstraction for Dynamic Programming &mdash; Graduate Descent</title>
+  
+
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&display=swap"
+        rel="stylesheet">
+
+  <meta name="author" content="Tim Vieira">
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="../favicon.png" rel="icon">
+  <link rel="alternate" type="application/atom+xml" title="Graduate Descent Atom Feed" href="../atom.xml">
+  <link rel="stylesheet" href="../pygments.css">
+
+  <link rel="stylesheet" href="/blog/css/blog.css">
+
+  <!-- MathJax 3 -->
+  <script>
+    window.MathJax = {
+      startup: {
+        typeset: false,    // We typeset manually after all widgets have built their DOM
+        ready: function() {
+          MathJax.startup.defaultReady();
+          MathJax.startup.promise.then(function() {
+            // Typeset the full page once MathJax is ready
+            MathJax.typesetPromise();
+          });
+        }
+      },
+      tex: {
+        inlineMath: [['$', '$']],
+        displayMath: [['$$', '$$']],
+        processEscapes: true,
+        macros: {"KleeneStar": "{\\color{#332288}{\\star}}", "Values": "{\\color{magenta}{\\mathbb{V}}}", "defeq": "\\overset{\\text{def}}{=}", "dfalse": "\\mathsf{false}", "dtrue": "\\mathsf{true}", "dunk": "\\mathsf{unk}", "kleene": ["#1^{\\KleeneStar}", 1], "otimes": "\\mathbin{\\circ}", "semione": "{\\color{magenta}{\\underline{1}}}", "semizero": "{\\color{magenta}{\\underline{0}}}", "va": "{\\color{magenta}{a}}", "vb": "{\\color{magenta}{b}}", "vc": "{\\color{magenta}{c}}", "vd": "{\\color{magenta}{d}}"},
+      },
+      chtml: {
+        scale: 1,
+      },
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+<body>
+  <header role="banner"><hgroup>
+    <h1><a href="https://timvieira.github.io/blog/">Graduate Descent</a></h1>
+    <nav role="navigation">
+      <a href="https://timvieira.github.io/">About</a>
+      <a href="https://timvieira.github.io/blog/">Archive</a>
+    </nav>
+  </hgroup></header>
+  <div id="main">
+    <div id="content">
+
+
+
+<div>
+  <article class="hentry" role="article">
+    <header>
+      <h1 class="entry-title" style="view-transition-name: title-semirings-a-powerful-abstraction-for-dynamic-programming">Semirings: A Powerful Abstraction for Dynamic Programming</h1>
+      <p class="meta">
+        <time datetime="2026-11-07T00:00:00" pubdate>Nov 07, 2026</time>
+        <span class="byline author vcard">
+          by <span class="fn">Tim Vieira</span>
+        </span>
+        
+        <br>
+        <span class="tags">
+          <a class="tag" href="../index.html#tag=semirings">semirings</a> <a class="tag" href="../index.html#tag=algorithms">algorithms</a> <a class="tag" href="../index.html#tag=dynamic-programming">dynamic-programming</a>
+        </span>
+        
+      </p>
+    </header>
+    <div class="entry-content" style="view-transition-name: article-body">
+      <style>
+.theorem { border-left: 3px solid #c9c2b8; padding: 0.6em 1em; margin: 1.2em 0; background: #fbf8f3; }
+.theorem > :first-child { margin-top: 0; }
+.theorem > :last-child { margin-bottom: 0; }
+.lib { font-size: 0.9em; color: #666; }
+</style>
+
+<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px 16px; margin-bottom: 1.5em; border-radius: 4px; font-size: 0.95em;">
+<p style="margin: 0;"><strong>Draft</strong> — This article is a work in progress. Content may change.
+</p></div>
+
+<p>Semirings are a powerful abstraction for dynamic programming.  They provide a useful and elegant abstraction level for</p>
+<ul>
+<li>algorithms for NLP (e.g., Teitelbaum, 1973; Mohri, 1997; <a href="https://aclanthology.org/J99-4004/">Goodman, 1999</a>; Huang, 2008)</li>
+<li>probabilistic inference (e.g., Aji and McEliece, 2000)</li>
+<li>database provenance (e.g., <a href="https://doi.org/10.1145/1265530.1265535">Green et al., 2007</a>)</li>
+<li>network analysis (e.g., Gondran and Minoux, 2008; Baras and Theodorakopoulos, 2010)</li>
+<li>program analysis (e.g., Cousot and Cousot, 1977; <a href="https://doi.org/10.1145/1857914.1857917">Esparza et al., 2010</a>; <a href="https://doi.org/10.1145/2500365.2500613">Dolan, 2013</a>)</li>
+</ul>
+<p>Semirings enable the following separation of concerns:</p>
+<ol>
+<li>devising a compact encoding of a set of derivations (e.g., paths in a graph, parses of a sentence), and</li>
+<li>how to evaluate and aggregate the derivations (e.g., the highest-weight derivation, the total weight of all derivations).</li>
+</ol>
+<p>Part 1 is specified by the algorithm (e.g., a grammar, a graph, or a dynamic program), and part 2 is given by the choice of semiring.  Modularizing by semiring gives different semantics for the same algorithm with the same time and space complexity (assuming semiring operations take unit time), and we can even reuse the implementation.<label class="sidenote-number"></label><span class="margin-note">Although certain semirings may allow for additional efficiency shortcuts that others do not, certain implementations may assume properties beyond the basic semiring axioms.</span></p>
+<div class="theorem">
+<p><strong>This page is the documentation for the <a href="https://github.com/timvieira/semirings"><code>semirings</code></a> Python library.</strong>  Every semiring below links to its implementation, and every <code>&gt;&gt;&gt;</code> example on this page is run by the library's test suite, so the page and the code cannot drift apart.  Install the library with</p>
+<pre><code>pip install git+https://github.com/timvieira/semirings
+</code></pre>
+<p>The text is adapted from the background chapter of <a href="https://timvieira.github.io/doc/2023-timv-dissertation.pdf">my dissertation</a>, and it is background for my series on <a href="https://timvieira.github.io/semiring-newton/weighted-grammars-as-algebraic-systems/">solving weighted grammars</a>.</p>
+</div>
+<h2 id="definition">Definition</h2>
+<div class="theorem">
+<p><strong>Definition.</strong> A <strong>semiring</strong> $\langle \Values, \oplus, \otimes, \semizero, \semione \rangle$ is a set $\Values$ equipped with two monoid operations $\langle \Values, \oplus, \semizero \rangle$ and $\langle \Values, \otimes, \semione \rangle$ such that the following properties hold:</p>
+<ol>
+<li>$\langle \Values, \oplus, \semizero \rangle$ is a commutative monoid</li>
+<li>$\langle \Values, \otimes, \semione \rangle$ is a monoid</li>
+<li><em>Distributivity</em>: for all $\va, \vb, \vc \in \Values$, $\;\va \otimes (\vb \oplus \vc) = (\va \otimes \vb) \oplus (\va \otimes \vc)\;$ and $\;(\vb \otimes \va) \oplus (\vc \otimes \va) = (\vb \oplus \vc) \otimes \va$</li>
+<li><em>Multiplicative annihilation</em> by $\semizero$: for all $\va \in \Values$, $\;\semizero \otimes \va = \va \otimes \semizero = \semizero$</li>
+</ol>
+</div>
+<p>A semiring is <strong>commutative</strong> if $\otimes$ is commutative, and <strong>idempotent</strong> if $\oplus$ is idempotent ($\va \oplus \va = \va$).</p>
+<p>In the library, a semiring is a Python class with class attributes <code>zero</code> and <code>one</code> and the operators <code>+</code> and <code>*</code> (and, for closed semirings, a <code>star</code> method).  <a href="https://github.com/timvieira/semirings/blob/main/semirings/base.py"><code>check_axioms</code></a> tests the axioms above on sample values.</p>
+<p>The key property of a semiring is distributivity, as it allows us to factor out common subexpressions: we can safely rewrite $(\va \otimes \vb) \oplus (\va \otimes \vc)$ (three operations) into an equivalent smaller expression $\va \otimes (\vb \oplus \vc)$ (two operations).  The factored expression can be significantly smaller.</p>
+<div class="theorem">
+<p><strong>Example.</strong> The equations below may be regarded as encoding a weighted directed graph with two states $\mathtt{x}$ and $\mathtt{y}$.  The weights in the graph have been left abstract as symbols $\va$, $\vb$, $\vc$, and $\vd$.</p>
+<figure>
+<img src="../images/semiring-two-state-graph.svg" alt="A weighted directed graph with states x and y: a self-loop on x with weight a, an edge from x to y with weight b, an edge from y to x with weight c, and a self-loop on y with weight d; y is the final state." style="width: 320px; max-width: 100%; display: block; margin: 0 auto;">
+</figure>
+<p>$$
+\begin{aligned}
+\mathtt{x} &= \va \otimes \mathtt{x} \oplus \vb \otimes \mathtt{y} \\
+\mathtt{y} &= \vc \otimes \mathtt{x} \oplus \vd \otimes \mathtt{y} \oplus \semione
+\end{aligned}
+$$</p>
+<p>The solution to the system of equations is a map where the value associated with $\mathtt{x}$ is the set of all paths starting in state $\mathtt{x}$ and ending in state $\mathtt{y}$, and the value associated with $\mathtt{y}$ is the set of all paths starting in state $\mathtt{y}$ and ending in state $\mathtt{y}$.  In this graph, there are infinitely many paths, and yet, we can express them as a small set of equations.  Below we consider replacing the weights ($\va$, $\vb$, $\vc$, $\vd$) with values in a variety of semirings.  In each case, we describe the interpretation of the semiring values associated with $\mathtt{x}$ and $\mathtt{y}$.</p>
+<ul>
+<li>$\langle \{\dfalse, \dtrue\}, \vee, \wedge, \dfalse, \dtrue \rangle$ where $\dtrue$ is placed on each edge $\Longrightarrow$ $\mathtt{y}$ is reachable from $\mathtt{x}$, and $\mathtt{y}$ is reachable from $\mathtt{y}$.</li>
+<li>$\langle \mathbb{R}_{\ge 0} \cup \{\infty\}, +, \cdot, 0, 1 \rangle$ $\Longrightarrow$ the total weight of all paths from $\mathtt{x}$ to $\mathtt{y}$ and $\mathtt{y}$ to $\mathtt{y}$.</li>
+<li>$\langle \mathbb{R} \cup \{\infty\}, \min, +, \infty, 0 \rangle$ $\Longrightarrow$ the least-cost path from $\mathtt{x}$ to $\mathtt{y}$ and $\mathtt{y}$ to $\mathtt{y}$.</li>
+<li>$\langle 2^{\Sigma^*}, \cup, \cdot, \emptyset, \{\varepsilon\} \rangle$ where $\Sigma$ is the alphabet $\{a, b, c, d\}$ $\Longrightarrow$ the (regular) formal language that describes the set of paths from $\mathtt{x}$ to $\mathtt{y}$ and from $\mathtt{y}$ to $\mathtt{y}$.</li>
+</ul>
+<p>This is just a small example of what we can do by swapping the semiring and keeping the equations essentially the same.</p>
+</div>
+<p>Here is the same example in the library.  <a href="https://github.com/timvieira/semirings/blob/main/semirings/graph.py"><code>WeightedGraph</code></a> builds the graph over any semiring, and its <code>star()</code> sums over all paths (the reflexive, transitive closure), so entry $(\mathtt{x}, \mathtt{y})$ of the closure is the value of $\mathtt{x}$ and entry $(\mathtt{y}, \mathtt{y})$ is the value of $\mathtt{y}$.  (With regular-expression weights, the same code returns the languages of paths; see the formal-languages entry below.)</p>
+<div class="highlight"><pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">WeightedGraph</span><span class="p">,</span> <span class="n">Float</span><span class="p">,</span> <span class="n">Boolean</span><span class="p">,</span> <span class="n">MinPlus</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="n">S</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span>
+<span class="o">...</span>     <span class="n">g</span> <span class="o">=</span> <span class="n">WeightedGraph</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+<span class="o">...</span>     <span class="n">g</span><span class="p">[</span><span class="s1">'x'</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span><span class="p">;</span> <span class="n">g</span><span class="p">[</span><span class="s1">'x'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span><span class="p">;</span> <span class="n">g</span><span class="p">[</span><span class="s1">'y'</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span><span class="p">;</span> <span class="n">g</span><span class="p">[</span><span class="s1">'y'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span>
+<span class="o">...</span>     <span class="n">closure</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">star</span><span class="p">()</span>
+<span class="o">...</span>     <span class="k">return</span> <span class="n">closure</span><span class="p">[</span><span class="s1">'x'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">],</span> <span class="n">closure</span><span class="p">[</span><span class="s1">'y'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">solve</span><span class="p">(</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">zero</span><span class="p">,</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span><span class="p">)</span>   <span class="c1"># reachability</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">solve</span><span class="p">(</span><span class="n">Float</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.25</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>                                    <span class="c1"># total weight</span>
+<span class="p">(</span><span class="mf">1.3333333333333333</span><span class="p">,</span> <span class="mf">2.6666666666666665</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="n">MinPlus</span><span class="p">,</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span> <span class="c1"># least cost</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">x</span><span class="o">.</span><span class="n">cost</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">cost</span>
+<span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+</code></pre></div>
+
+<h2 id="closed-semirings-and-the-star-operation">Closed semirings and the star operation</h2>
+<div class="theorem">
+<p><strong>Definition.</strong> A <strong>closed semiring</strong> has an additional operator, called the (Kleene) <strong>star</strong> operator $\kleene{(\cdot)}$.  This operation must satisfy the following axioms for all $\va \in \Values$:</p>
+<p>$$
+\kleene{\va} = \semione \oplus \va \otimes \kleene{\va}
+\quad\text{and}\quad
+\kleene{\va} = \semione \oplus \kleene{\va} \otimes \va
+$$</p>
+</div>
+<p>We often interpret $\kleene{\va}$ as the solution to the infinite series that arises from unrolling either of its recursive identities:</p>
+<p>$$
+\kleene{\va} = \bigoplus_{n=0}^\infty \va^n \quad\text{for } \va \in \Values
+$$</p>
+<p>The star operation is useful for solving certain linear equations.  For example, $x = \vb \oplus \va \otimes x \oplus \vc \otimes y$ can be rearranged to "solve" for $x$ <em>without subtraction or division</em>: $x = \kleene{\va} \otimes (\vb \oplus \vc \otimes y)$.  (<a href="https://timvieira.github.io/semiring-newton/solving-linear-grammars-exactly/">Part 2 of the grammar series</a> uses the star of a <em>matrix</em> to solve whole systems of such equations.)</p>
+<p>A special family of semirings that always have a star operation is those that are $K$-closed.</p>
+<div class="theorem">
+<p><strong>Definition.</strong> For $K \in \mathbb{N}$, a semiring is <strong>$K$-closed</strong> if and only if<label class="sidenote-number"></label><span class="margin-note">It is possible to replace $\forall K'$ with $K' = K+1$; the conditions are equivalent (<a href="https://cs.nyu.edu/~mohri/pub/jalc.pdf">Mohri, 2002, Lemma 4</a>).</span></p>
+<p>$$
+\forall\, \va \in \Values, \forall\, K' > K\colon \quad \bigoplus_{k=0}^{K'} \va^k = \bigoplus_{k=0}^{K} \va^k.
+$$</p>
+</div>
+<p>Intuitively, $K$-closed semirings imply that we only have to sum contributions of a cycle by iterating around the cycle at most $K$ times; further iterations do not affect the value of the summation.  When $K = 0$, the condition simplifies to $\forall\, \va \in \Values\colon \semione \oplus \va = \semione$.  Examples of $0$-closed semirings include the boolean, min-plus, and Viterbi semirings.  Examples of general $K$-closed semirings include the $(K\!+\!1)$-best semirings (<a href="https://cs.nyu.edu/~mohri/pub/jalc.pdf">Mohri, 2002, §6</a>) and the $K$-collapsed natural numbers.  Non-examples include the arithmetic semirings.  Each $K$-closed semiring has a simple expression for its star operation because it is no longer an infinite sum:</p>
+<p>$$
+\kleene{\va} = \bigoplus_{k=0}^K \va^k
+\qquad\text{e.g., 0-closed: } \kleene{\va} = \semione, \quad \text{1-closed: } \kleene{\va} = \semione \oplus \va.
+$$</p>
+<p>When a semiring has no closed form for its star, the library's base class provides generic fallbacks (<code>star_approx</code>, <code>star_fixpoint</code>, and <code>star_doubling</code>) that sum the series numerically.</p>
+<h2 id="a-semiring-compendium">A semiring compendium</h2>
+<p>Below we list several commonly used semirings and some applications where they appear, along with their star operations and their implementations in the library.  We do not have a particular organizing principle for this list, but we hope that it may serve as a useful reference and that it illustrates that semirings can do some surprising things.</p>
+<details class="derivation">
+<summary>Logic
+</summary>
+<p><strong>Boolean semiring</strong> $\langle \{\dfalse, \dtrue\}, \vee, \wedge, \dfalse, \dtrue \rangle$ is used to test reachability in graphs and, more generally, provability.  Its star operation is $\kleene{\dfalse} = \kleene{\dtrue} = \dtrue$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/boolean.py"><code>Boolean</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Boolean</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">zero</span><span class="p">,</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span>
+<span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">zero</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">Boolean</span><span class="o">.</span><span class="n">one</span>
+<span class="kc">True</span>
+</code></pre>
+</div>
+<p><strong>Three-valued logic</strong> $\langle \{\dtrue, \dfalse, \dunk\}, \max, \min, \dfalse, \dtrue \rangle$ where $\dfalse < \dunk < \dtrue$.<label class="sidenote-number"></label><span class="margin-note">Often $\langle \dfalse, \dunk, \dtrue \rangle$ are encoded as $\langle -1, 0, +1 \rangle$, as in the library.</span>  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>ThreeValuedLogic</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThreeValuedLogic</span> <span class="k">as</span> <span class="n">T</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">T</span><span class="o">.</span><span class="n">unk</span> <span class="o">+</span> <span class="n">T</span><span class="o">.</span><span class="n">zero</span> <span class="o">==</span> <span class="n">T</span><span class="o">.</span><span class="n">unk</span><span class="p">,</span> <span class="n">T</span><span class="o">.</span><span class="n">unk</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">one</span> <span class="o">==</span> <span class="n">T</span><span class="o">.</span><span class="n">unk</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Fuzzy sets</strong> $\langle [0, 1], \max, \min, 0, 1 \rangle$ is related to fuzzy sets (Zadeh, 1965).<label class="sidenote-number"></label><span class="margin-note">A fuzzy set extends an ordinary set to support graded membership that indicates the extent to which a given element belongs to a given set ($0$ meaning definitely not in the set, and $1$ meaning definitely in the set).</span>  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>maxmin</code></a><code>(0, 1)</code></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">maxmin</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Fuzzy</span> <span class="o">=</span> <span class="n">maxmin</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span> <span class="o">+</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.7</span><span class="p">)</span> <span class="o">==</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.7</span><span class="p">),</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span> <span class="o">*</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.7</span><span class="p">)</span> <span class="o">==</span> <span class="n">Fuzzy</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Łukasiewicz semiring</strong> $\langle [0,1], \max, \max(0, x + y - 1), 0, 1 \rangle$ (Łukasiewicz, 1920).  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Lukasiewicz</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Lukasiewicz</span> <span class="k">as</span> <span class="n">L</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.75</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">==</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.25</span><span class="p">),</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.75</span><span class="p">)</span> <span class="o">+</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">==</span> <span class="n">L</span><span class="p">(</span><span class="mf">0.75</span><span class="p">)</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p>These semirings are each $0$-closed; thus, their star operations are $\kleene{\va} = \semione$.</p>
+</details>
+<details class="derivation">
+<summary>Arithmetic semirings
+</summary>
+<p><strong>Counting semiring</strong> $\langle \mathbb{N}, +, \cdot, 0, 1 \rangle$.  As the name suggests, this semiring is used to count things, such as the number of paths between two nodes in a graph.  If $\mathbb{N}$ is augmented with $\infty$, then $\kleene{\va} = 1$ if $\va = 0$ and $\infty$ otherwise.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/count.py"><code>Count</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Count</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Count</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">Count</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">Count</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">Count</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="p">(</span><span class="n">Count</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">Count</span><span class="p">(</span><span class="mi">6</span><span class="p">))</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Count</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">(),</span> <span class="n">Count</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span>
+<span class="p">(</span><span class="n">Count</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">Count</span><span class="p">(</span><span class="n">inf</span><span class="p">))</span>
+</code></pre>
+</div>
+<p><strong>Real semiring</strong> $\langle \mathbb{R}, +, \cdot, 0, 1 \rangle$.  If we extend $\mathbb{R}$ with $\infty$, we have $\kleene{\va} = \frac{1}{1 - \va}$ if $|\va| < 1$, $\infty$ if $\va \ge 1$, and it is undefined if $\va \le -1$.  So, unfortunately, this semiring does not have complete support for solving the infinite series.  <strong>Nonnegative-real semiring</strong> $\langle \mathbb{R}_{\ge 0} \cup \{\infty\}, +, \cdot, 0, 1 \rangle$.  This semiring is used for computing the normalization constant of a probabilistic model (<a href="https://aclanthology.org/J99-4004/">Goodman, 1999</a>).  Its star operation is $\kleene{\va} = \frac{1}{1 - \va}$ for $\va < 1$ and $\infty$ otherwise.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/float.py"><code>Float</code></a> (values are plain Python floats)</span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Float</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Float</span><span class="o">.</span><span class="n">zero</span><span class="p">,</span> <span class="n">Float</span><span class="o">.</span><span class="n">one</span>
+<span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Float</span><span class="o">.</span><span class="n">star</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">Float</span><span class="o">.</span><span class="n">star</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">inf</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Log-nonnegative-real semiring</strong> $\langle \mathbb{R} \cup \{-\infty, \infty\}, \oplus_{\log}, +, -\infty, 0 \rangle$ where $x \oplus_{\log} y \defeq \log(\exp(x) + \exp(y))$.<label class="sidenote-number"></label><span class="margin-note">For speed and numerical precision, the log-space addition operation should not be computed as written; use a library function such as <code>numpy.logaddexp</code>.</span>  This semiring is isomorphic to the nonnegative-real semiring; however, it is often preferred as it can avoid certain numerical issues.<label class="sidenote-number"></label><span class="margin-note">See also the <a href="https://timvieira.github.io/blog/log-real-number-class/">log-real semiring</a>, which extends it with a sign bit so that negative numbers can be represented.  The library's <code>LogVal</code> is signed in this way.</span>  Its star operation is $\kleene{\va} = -\log(1 - \exp(\va))$ if $\va < 0$ and $\infty$ otherwise.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/logval.py"><code>LogVal</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">LogVal</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="n">LogVal</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">+</span> <span class="n">LogVal</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="mf">0.25</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">10</span><span class="p">),</span> <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">LogVal</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()),</span> <span class="mi">10</span><span class="p">)</span>
+<span class="p">(</span><span class="mf">0.75</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>First-order expectation semirings</strong> (<a href="https://aclanthology.org/P02-1001/">Eisner, 2002</a>) can be used to compute first-order statistics, such as the expected error rate, the entropy, or the expected feature counts.  Elements are pairs $(p, r)$ with $(p_1, r_1) \otimes (p_2, r_2) = (p_1 p_2, p_1 r_2 + p_2 r_1)$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/expectation.py"><code>make_expectation</code></a><code>(P, R)</code>, and the specialized <a href="https://github.com/timvieira/semirings/blob/main/semirings/entropy.py"><code>Entropy</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_expectation</span><span class="p">,</span> <span class="n">LogVal</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">E</span> <span class="o">=</span> <span class="n">make_expectation</span><span class="p">(</span><span class="n">LogVal</span><span class="p">,</span> <span class="n">LogVal</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">e</span> <span class="o">=</span> <span class="n">E</span><span class="p">(</span><span class="n">LogVal</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">LogVal</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="mf">1.0</span><span class="p">))</span><span class="o">.</span><span class="n">star</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">p</span><span class="p">),</span> <span class="mi">10</span><span class="p">),</span> <span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">r</span><span class="p">),</span> <span class="mi">10</span><span class="p">)</span>
+<span class="p">(</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Second-order expectation semirings</strong> (<a href="https://aclanthology.org/D09-1005/">Li and Eisner, 2009</a>) can be used to compute second-order statistics, such as the variance of the error rate, the gradient of entropy, and the covariance matrix of feature counts.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/expectation.py"><code>SecondOrderExpectation</code></a></span></p>
+<p><strong>$K$-collapsed natural numbers</strong> $\langle \{0, \ldots, K\}, \min(K, x + y), \min(K, x \cdot y), 0, 1 \rangle$ can be used as guard rails that prevent infinite running times due to counting off to infinity.  It is isomorphic to the boolean semiring when $K = 1$.  Its star operation is $\kleene{\va} = 1$ if $\va = 0$ and $K$ otherwise.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/count.py"><code>make_count_k</code></a><code>(K)</code></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_count_k</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">C3</span> <span class="o">=</span> <span class="n">make_count_k</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">C3</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">C3</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">C3</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">C3</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">C3</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">(),</span> <span class="n">C3</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span>
+<span class="p">(</span><span class="n">Count</span><span class="p">[</span><span class="mi">3</span><span class="p">](</span><span class="mi">3</span><span class="p">),</span> <span class="n">Count</span><span class="p">[</span><span class="mi">3</span><span class="p">](</span><span class="mi">3</span><span class="p">),</span> <span class="n">Count</span><span class="p">[</span><span class="mi">3</span><span class="p">](</span><span class="mi">1</span><span class="p">),</span> <span class="n">Count</span><span class="p">[</span><span class="mi">3</span><span class="p">](</span><span class="mi">3</span><span class="p">))</span>
+</code></pre>
+</div>
+</details>
+<details class="derivation">
+<summary>Optimization
+</summary>
+<p>These semirings are often used when computing the minimum or maximum value over some set, for example, the weighted set of paths in a graph.</p>
+<p><strong>Tropical semiring</strong> (aka <strong>min-plus</strong>) $\langle \mathbb{R} \cup \{\infty\}, \min, +, \infty, 0 \rangle$ is used to find the shortest path or cheapest derivation.  Its star operation is $\kleene{\va} = 0$ (for $\va \ge 0$).  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/minplus.py"><code>MinPlus</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">MinPlus</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">==</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">3</span><span class="p">),</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">==</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">MinPlus</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MinPlus</span><span class="o">.</span><span class="n">one</span>
+<span class="kc">True</span>
+</code></pre>
+</div>
+<p><strong>Arctic semiring</strong> (aka <strong>max-plus</strong>) $\langle \mathbb{R} \cup \{-\infty\}, \max, +, -\infty, 0 \rangle$ is used to find the longest path or highest-weight derivation.  Its star operation is $\kleene{\va} = 0$ if $\va \le 0$ and $\infty$ otherwise.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/maxplus.py"><code>MaxPlus</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaxPlus</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">MaxPlus</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MaxPlus</span><span class="o">.</span><span class="n">one</span><span class="p">,</span> <span class="n">MaxPlus</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MaxPlus</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="s1">'inf'</span><span class="p">))</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Viterbi semiring</strong> (aka <strong>max-times</strong>) $\langle [0,1], \max, \cdot, 0, 1 \rangle$ is used to find the most probable explanation in a probabilistic model.  Its star operation is $\kleene{\va} = 1$.  If we broaden the carrier set with numbers $> 1$, we have to extend the definition to $\kleene{\va} = \infty$ for $\va > 1$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/maxtimes.py"><code>MaxTimes</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">MaxTimes</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">MaxTimes</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)</span> <span class="o">+</span> <span class="n">MaxTimes</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span> <span class="o">==</span> <span class="n">MaxTimes</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">MaxTimes</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MaxTimes</span><span class="o">.</span><span class="n">one</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Min-times semiring</strong> $\langle \mathbb{R}_{\ge 0} \cup \{\infty\}, \min, \cdot, \infty, 1 \rangle$ can be used to find the least probable derivation.  Its star operation is $\kleene{\va} = \semione \oplus \va = \min(1, \va)$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/mintimes.py"><code>MinTimes</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">MinTimes</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">MinTimes</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MinTimes</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span> <span class="n">MinTimes</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">==</span> <span class="n">MinTimes</span><span class="o">.</span><span class="n">one</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p><strong>Maximum-capacity semiring</strong> $\langle \mathbb{R} \cup \{-\infty, \infty\}, \max, \min, -\infty, \infty \rangle$ can be used to find the maximum-capacity (widest) path in a graph.  It is $0$-closed, so $\kleene{\va} = \semione$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Bottleneck</code></a> (an instance of <code>maxmin</code>)</span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bottleneck</span> <span class="k">as</span> <span class="n">B</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">B</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">+</span> <span class="n">B</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">==</span> <span class="n">B</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">B</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="n">B</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="o">==</span> <span class="n">B</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="p">(</span><span class="kc">True</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+</code></pre>
+</div>
+<p>These semirings can be augmented with additional bookkeeping to return an argmin/argmax (or even the set of argmins/argmaxes) in addition to the min/max.  In the library, the optimization semirings carry an optional backpointer <code>d</code> alongside the value, which equality ignores.  It is also possible to make the elements being compared tuples and to compare them under a lexicographic ordering; this is one way to add tie-breaking.</p>
+<p>The <strong>$K$-best semiring</strong> (top-$K$ or bottom-$K$) extends the optimization semirings to provide the $K$-best alternatives, where $K \ge 0$ is a fixed constant.<label class="sidenote-number"></label><span class="margin-note">Goodman (1998) gave the $K$-best semiring, which eagerly combines the top-$K$ values; <a href="https://cs.nyu.edu/~mohri/pub/jalc.pdf">Mohri (2002)</a> independently described $K$-best semirings.  <a href="https://aclanthology.org/W05-1506/">Huang and Chiang (2005)</a> generalized this approach to compute the $K$-best list lazily (and without knowledge of $K$), which can be significantly faster.</span>  Let $\langle \mathcal{A}, \otimes, \varepsilon \rangle$ be a monoid that is partially ordered under $\preccurlyeq$, with $\otimes$ monotonic.  Each element of $\Values$ is a sorted list of at most $K$ elements of $\mathcal{A}$, and</p>
+<ul>
+<li>$A \oplus B \defeq \mathrm{sort}^K(A \cup B)$</li>
+<li>$A \otimes B \defeq \mathrm{sort}^K([\, a \otimes b \mid a \in A,\, b \in B \,])$</li>
+<li>$\semizero \defeq [\,]$ and $\semione \defeq [\varepsilon]$</li>
+</ul>
+<p>where $\mathrm{sort}^K$ sorts under $\preccurlyeq$ and truncates to the $K$ smallest elements.  This semiring is $(K\!-\!1)$-closed, so we can use the truncated sum $\kleene{\va} = \bigoplus_{k=0}^{K-1} \va^k$.  <span class="lib">Library: the lazy version, <a href="https://github.com/timvieira/semirings/blob/main/semirings/lazysort.py"><code>LazySort</code></a>, which enumerates derivations best-first without fixing $K$ (variants via <code>make_lazysort_semiring</code>)</span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">LazySort</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">list</span><span class="p">(</span><span class="n">LazySort</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="s1">'a'</span><span class="p">)</span> <span class="o">+</span> <span class="n">LazySort</span><span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="s1">'b'</span><span class="p">))</span>
+<span class="p">[(</span><span class="mf">0.5</span><span class="p">,</span> <span class="s1">'a'</span><span class="p">),</span> <span class="p">(</span><span class="mf">0.3</span><span class="p">,</span> <span class="s1">'b'</span><span class="p">)]</span>
+</code></pre>
+</div>
+</details>
+<details class="derivation">
+<summary>Formal languages and weighted formal languages
+</summary>
+<p><strong>Formal languages</strong> $\langle 2^{\Sigma^*}, \cup, \cdot, \emptyset, \{\varepsilon\} \rangle$, where $\Sigma$ is a set of symbols, $\Sigma^*$ is the set of strings over $\Sigma$, $\varepsilon$ is the empty string, and $\cdot$ is (setwise) string concatenation.  The semiring of formal languages can be used to enumerate the set of strings accepted by a context-free grammar, a finite-state automaton, and many other formalisms.  There are, unfortunately, no shortcuts for computing its star operation.  Finite-state automata can compactly represent certain infinite sets of strings; they are closed under the union, concatenation, and star operations.<label class="sidenote-number"></label><span class="margin-note">Although context-free languages are also closed under the semiring operations, their representations (context-free grammars and pushdown automata) do not have complete algorithms to test equality, severely limiting their utility as a computational representation.</span>  <span class="lib">Library: regular languages, as regular expressions (<a href="https://github.com/timvieira/semirings/blob/main/semirings/regex.py"><code>Symbol</code></a> and <a href="https://github.com/timvieira/semirings/blob/main/semirings/regex.py"><code>RegularLanguage</code></a>) or as automata with language equality (<a href="https://github.com/timvieira/semirings/blob/main/semirings/regex.py"><code>RegularLanguageSet</code></a>)</span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Symbol</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">Symbol</span><span class="p">(</span><span class="s1">'a'</span><span class="p">),</span> <span class="n">Symbol</span><span class="p">(</span><span class="s1">'b'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">a</span><span class="o">.</span><span class="n">star</span><span class="p">()</span> <span class="o">*</span> <span class="n">b</span>
+<span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="o">*</span><span class="err">⋅</span><span class="n">b</span>
+</code></pre>
+</div>
+<p><strong>Weighted formal languages</strong>: The semiring of formal languages can be extended to semiring-weighted languages, where a semiring weight is assigned to each string.  Let $\langle \Values, \oplus, \otimes, \semizero, \semione \rangle$ be a base semiring and $\Sigma$ an alphabet.  The semiring of weighted formal languages $\Values\langle\!\langle \Sigma^* \rangle\!\rangle$ has as elements all functions $L \colon \Sigma^* \to \Values$, and for $L, L'$ and $x \in \Sigma^*$:</p>
+<ul>
+<li>$[L \oplus L'](x) \defeq L(x) \oplus L'(x)$</li>
+<li>$[L \otimes L'](x) \defeq \bigoplus_{x = y \cdot z} L(y) \otimes L'(z)$</li>
+<li>$\semizero(x) \defeq \semizero$ and $\semione(x) \defeq \semione$ if $x = \varepsilon$ and $\semizero$ otherwise</li>
+</ul>
+<p>Formal languages are the special case of boolean weights.  Note that $\Values\langle\!\langle \Sigma^* \rangle\!\rangle$ is not commutative (concatenation does not commute), even when $\Values$ is.  <span class="lib">Library: not yet a semiring class; weighted automata live in the companion <a href="https://github.com/timvieira/wfsa"><code>wfsa</code></a> package.</span></p>
+</details>
+<details class="derivation">
+<summary>Matrices and graphs
+</summary>
+<p>We can "lift" any base semiring $\langle \Values, \oplus, \otimes, \semizero, \semione \rangle$ into a semiring over square matrices $\Values^{D \times D}$, where $D$ is a set (<a href="https://doi.org/10.1016/0304-3975(77)90056-1">Lehmann, 1977</a>).  The operations are a straightforward generalization of the usual ones on $\mathbb{R}$.  Let $\boldsymbol{A}, \boldsymbol{B} \in \Values^{D \times D}$:</p>
+<ul>
+<li>$[\boldsymbol{A} + \boldsymbol{B}]_{ij} \defeq \boldsymbol{A}_{ij} \oplus \boldsymbol{B}_{ij}$</li>
+<li>$[\boldsymbol{A}\, \boldsymbol{B}]_{ik} \defeq \bigoplus_{j \in D} \boldsymbol{A}_{ij} \otimes \boldsymbol{B}_{jk}$</li>
+<li>$[\boldsymbol{0}]_{ij} \defeq \semizero$ and $[\boldsymbol{1}]_{ij} \defeq \semione$ if $i = j$ and $\semizero$ otherwise</li>
+</ul>
+<p>The star operation $\kleene{\boldsymbol{A}}$ can be computed as follows.  If $|D| = 1$, then $\kleene{[a]} = [\kleene{a}]$.  Otherwise, we can decompose $\boldsymbol{A}$ into nontrivial blocks $\langle \boldsymbol{B}, \boldsymbol{C}, \boldsymbol{D}, \boldsymbol{E} \rangle$ and apply the following blockwise recursion,</p>
+<p>$$
+\kleene{\begin{bmatrix} \boldsymbol{B} & \boldsymbol{C} \\ \boldsymbol{D} & \boldsymbol{E} \end{bmatrix}}
+= \begin{bmatrix} \kleene{\boldsymbol{B}} + \kleene{\boldsymbol{B}}\, \boldsymbol{C}\, \kleene{\boldsymbol{\Delta}}\, \boldsymbol{D}\, \kleene{\boldsymbol{B}} & \kleene{\boldsymbol{B}}\, \boldsymbol{C}\, \kleene{\boldsymbol{\Delta}} \\ \kleene{\boldsymbol{\Delta}}\, \boldsymbol{D}\, \kleene{\boldsymbol{B}} & \kleene{\boldsymbol{\Delta}} \end{bmatrix}
+$$</p>
+<p>where $\boldsymbol{\Delta} = \boldsymbol{E} + \boldsymbol{D}\, \kleene{\boldsymbol{B}}\, \boldsymbol{C}$.  It is straightforward to verify that each recursive call to $\kleene{(\cdot)}$ is decreasing in size; thus, the recursive definition is well-founded.  Furthermore, if the blocks are chosen to be equal in size, then the runtime is $\mathcal{O}(|D|^3)$.  <span class="lib">Library: dense matrices via <a href="https://github.com/timvieira/semirings/blob/main/semirings/kleene.py"><code>MatrixSemiring</code></a><code>(S, D)</code>, and sparse graphs via <a href="https://github.com/timvieira/semirings/blob/main/semirings/graph.py"><code>WeightedGraph</code></a>, whose <code>star()</code> works one strongly connected component at a time (see the two-state example above)</span></p>
+</details>
+<details class="derivation">
+<summary>Sets of vectors
+</summary>
+<ul>
+<li>The <strong>semiring of semilinear sets</strong> is $\langle 2^{\mathbb{N}^\Sigma}, \cup, +, \emptyset, \{\boldsymbol{0}\} \rangle$ where $X + Y \defeq \{x + y\}_{x \in X, y \in Y}$.  This semiring can be used to compute the Parikh image of a formal language with alphabet $\Sigma$, i.e., the set of bags of symbols (forgetting their order).  See <a href="https://mediatum.ub.tum.de/doc/1273784/1273784.pdf">Schlund (2016, Ch. 5)</a> for further discussion and an efficient implementation.  <span class="lib">Library: experimental, <a href="https://github.com/timvieira/semirings/blob/main/experimental/semilinear.py"><code>experimental/semilinear.py</code></a></span></li>
+<li>The <strong>Pareto frontier semiring</strong> has as elements the Pareto-efficient sets of vectors, with $X \oplus Y \defeq \mathrm{pareto}(X \cup Y)$, $X \otimes Y \defeq \mathrm{pareto}(X + Y)$, $\semizero = \emptyset$, and $\semione = \{\boldsymbol{0}\}$.  The function $\mathrm{pareto}$ filters a set of vectors to those that are non-dominated.  The set of Pareto-efficient vectors represents the optimal trade-offs between different objectives.  On $\mathbb{R}_{\ge 0}^D$ it is $0$-closed, so $\kleene{X} = \semione$.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/pareto.py"><code>Pareto</code></a> (two-dimensional, min convention) and <code>make_pareto(d)</code></span></li>
+<li>The <strong>semiring of convex sets in a vector space</strong> has $X \oplus Y \defeq \mathrm{convexhull}(X \cup Y)$ and $X \otimes Y \defeq \mathrm{convexhull}(X + Y)$, with $\semizero = \emptyset$ and $\semione = \{\boldsymbol{0}\}$.  For a finite-dimensional vector space, we may restrict to polytopes, each represented by a finite set of vertices.  Dyer (2013) used this semiring for efficient minimum error rate training.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/convex_hull.py"><code>ConvexHull</code></a> (any dimension)</span></li>
+</ul>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pareto</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">coords</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="n">Pareto</span><span class="p">([(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)])</span> <span class="o">+</span> <span class="n">Pareto</span><span class="p">([(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span> <span class="o">+</span> <span class="n">Pareto</span><span class="p">([(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)]))</span><span class="o">.</span><span class="n">points</span><span class="p">]</span>
+<span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConvexHull</span><span class="p">,</span> <span class="n">Point</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">ConvexHull</span><span class="p">([</span><span class="n">Point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">)])</span>
+<span class="n">ConvexHull</span><span class="p">([</span><span class="n">Point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)])</span>
+</code></pre>
+</div>
+</details>
+<details class="derivation">
+<summary>Provenance semirings
+</summary>
+<p><strong>Provenance semirings</strong> (<a href="https://doi.org/10.1145/1265530.1265535">Green et al., 2007</a>) are used in database systems to validate or explain query results.  Similarly, "derivation semirings" (Goodman, 1998) can be used to encode the set of derivations for a given item.  Some examples:</p>
+<ul>
+<li>The <strong>set semiring</strong> $\langle 2^{\mathcal{A}}, \cup, \cap, \emptyset, \mathcal{A} \rangle$, where $\mathcal{A}$ is a base set, can be used to track the possibility of events in a system.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>make_set</code></a><code>(universe, emptyset)</code></span></li>
+<li>The <strong>why semiring</strong> $\langle 2^{2^{\mathcal{A}}}, \cup, \{x \cup y\}_{x \in X, y \in Y}, \emptyset, \{\emptyset\} \rangle$.  The base set $\mathcal{A}$ is a set of annotations; the values computed with this semiring are the combinations of annotations required for a given tuple to appear in the answer to a query.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Why</code></a></span></li>
+<li>The <strong>lineage semiring</strong> $\langle 2^{\mathcal{A}} \cup \{\bot\}, \cup, \cup, \bot, \emptyset \rangle$, where $\bot$ is a special element satisfying the properties of $\semizero$.  In a graph, the lineage semiring determines the subset of reachable arc labels.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Lineage</code></a></span></li>
+</ul>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Why</span><span class="p">,</span> <span class="n">Lineage</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">w</span> <span class="o">=</span> <span class="n">Why</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'r'</span><span class="p">)</span> <span class="o">*</span> <span class="n">Why</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'s'</span><span class="p">)</span> <span class="o">+</span> <span class="n">Why</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'t'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">w</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+<span class="p">[[</span><span class="s1">'r'</span><span class="p">,</span> <span class="s1">'s'</span><span class="p">],</span> <span class="p">[</span><span class="s1">'t'</span><span class="p">]]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="nb">sorted</span><span class="p">((</span><span class="n">Lineage</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'r'</span><span class="p">)</span> <span class="o">*</span> <span class="n">Lineage</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'s'</span><span class="p">)</span> <span class="o">+</span> <span class="n">Lineage</span><span class="o">.</span><span class="n">lift</span><span class="p">(</span><span class="s1">'t'</span><span class="p">))</span><span class="o">.</span><span class="n">x</span><span class="p">)</span>
+<span class="p">[</span><span class="s1">'r'</span><span class="p">,</span> <span class="s1">'s'</span><span class="p">,</span> <span class="s1">'t'</span><span class="p">]</span>
+</code></pre>
+</div>
+<p><strong>Bags</strong> extend this to multisets: addition sums multiplicities, and multiplication takes the Cartesian product, so each element records the derivation that produced it.  <span class="lib">Library: <a href="https://github.com/timvieira/semirings/blob/main/semirings/bag.py"><code>Bag</code></a></span></p>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bag</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Bag</span><span class="p">({</span><span class="s1">'x'</span><span class="p">:</span> <span class="mi">2</span><span class="p">})</span> <span class="o">*</span> <span class="n">Bag</span><span class="p">({</span><span class="s1">'y'</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+<span class="n">Bag</span><span class="p">({(</span><span class="s1">'x'</span><span class="p">,</span> <span class="s1">'y'</span><span class="p">):</span> <span class="mi">2</span><span class="p">})</span>
+</code></pre>
+</div>
+</details>
+<details class="derivation">
+<summary>Other semirings in the library
+</summary>
+<ul>
+<li><strong>Divisibility</strong> $\langle \mathbb{N}, \gcd, \mathrm{lcm}, 0, 1 \rangle$.  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Division</code></a></span></li>
+<li><strong>Strings under longest common prefix</strong> $\langle \Sigma^* \cup \{\infty\}, \mathrm{lcp}, \cdot, \infty, \varepsilon \rangle$, used in weighted-automata determinization and string-to-weight transducers.  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>String</code></a></span></li>
+<li><strong>Bridges and cut sets</strong> of a graph: <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>Bridge</code></a> (edge bridges), <a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>VBridge</code></a> (vertex bridges), and <a href="https://github.com/timvieira/semirings/blob/main/semirings/cutsets.py"><code>CutSets</code></a> (Martelli, 1976).</li>
+<li><strong>Dual numbers</strong> $(p, r)$ with $(p_1, r_1)(p_2, r_2) = (p_1 p_2, p_1 r_2 + r_1 p_2)$, for forward-mode differentiation of a semiring computation.  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/misc.py"><code>dual</code></a><code>(base)</code>, e.g., <code>Dual = dual(Float)</code></span></li>
+<li><strong>Symbolic</strong> weights, which carry out sum-product computations in SymPy so the result can be simplified (see the <a href="https://github.com/timvieira/semirings">README</a> for the Fibonacci generating function).  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/symbolic.py"><code>Symbolic</code></a></span></li>
+<li><strong>Free expressions</strong>, which record the computation itself as an expression tree, for tracing and backpropagation.  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/free.py"><code>FreeExpr</code></a></span></li>
+<li><strong>Intervals</strong> (with the caveat, noted in the code, that intervals are not quite a semiring).  <span class="lib"><a href="https://github.com/timvieira/semirings/blob/main/semirings/interval.py"><code>make_interval</code></a></span></li>
+<li><strong>Polynomials and formal power series</strong> over semirings form a semiring in each case (Kuich, 1997; <a href="https://doi.org/10.1145/1265530.1265535">Green et al., 2007</a>).  <span class="lib">experimental, <a href="https://github.com/timvieira/semirings/blob/main/experimental/powerseries.py"><code>experimental/powerseries.py</code></a></span></li>
+</ul>
+<div class="highlight">
+<pre><span></span><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings.misc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Division</span><span class="p">,</span> <span class="n">String</span><span class="p">,</span> <span class="n">dual</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">Division</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">+</span> <span class="n">Division</span><span class="p">(</span><span class="mi">6</span><span class="p">),</span> <span class="n">Division</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span> <span class="o">*</span> <span class="n">Division</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="p">(</span><span class="n">Division</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">Division</span><span class="p">(</span><span class="mi">12</span><span class="p">))</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">String</span><span class="p">(</span><span class="s1">'abc'</span><span class="p">)</span> <span class="o">+</span> <span class="n">String</span><span class="p">(</span><span class="s1">'abd'</span><span class="p">),</span> <span class="n">String</span><span class="p">(</span><span class="s1">'ab'</span><span class="p">)</span> <span class="o">*</span> <span class="n">String</span><span class="p">(</span><span class="s1">'c'</span><span class="p">)</span>
+<span class="p">(</span><span class="n">String</span><span class="p">(</span><span class="n">ab</span><span class="p">),</span> <span class="n">String</span><span class="p">(</span><span class="n">abc</span><span class="p">))</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="kn">from</span><span class="w"> </span><span class="nn">semirings</span><span class="w"> </span><span class="kn">import</span> <span class="n">Float</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">dual</span><span class="p">(</span><span class="n">Float</span><span class="p">)(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">star</span><span class="p">()</span>
+<span class="err">⟨</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="err">⟩</span>
+</code></pre>
+</div>
+<p>Gondran and Minoux (2008) and Baras and Theodorakopoulos (2010) give many more semirings for network analysis, and many works use semirings to perform dataflow analyses on programs (Cousot and Cousot, 1977; <a href="https://doi.org/10.1145/1857914.1857917">Esparza et al., 2010</a>; <a href="https://doi.org/10.1145/2500365.2500613">Dolan, 2013</a>).</p>
+</details>
+    </div>
+    
+  </article>
+
+  <!--
+  <section>
+    <h1 class="comments">Comments</h1>
+    <div id="disqus_thread" aria-live="polite">
+      <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+    </div>
+  </section>
+  -->
+</div>
+
+
+
+      
+    </div>
+  </div>
+  <footer role="contentinfo"></footer>
+  <!--
+  
+  <script type="text/javascript">
+    var disqus_shortname = 'graduatedescent';
+    var disqus_identifier = 'https://timvieira.github.io/blog/semirings-a-powerful-abstraction-for-dynamic-programming/';
+    var disqus_url = 'https://timvieira.github.io/blog/semirings-a-powerful-abstraction-for-dynamic-programming/';
+    var disqus_title = 'Semirings: A Powerful Abstraction for Dynamic Programming';
+    (function() {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = "//" + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  
+  -->
+  
+<script>
+// Toggle sidenotes on narrow screens
+document.querySelectorAll('.sidenote-number').forEach(function(el) {
+  el.addEventListener('click', function() {
+    el.classList.toggle('active');
+  });
+});
+</script>
+</body>
+</html>

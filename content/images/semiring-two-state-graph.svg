@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 150" font-family="Georgia, 'Times New Roman', serif" role="img">
+<title>A weighted graph with two states x and y</title>
+<defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#333"/>
+  </marker>
+</defs>
+<!-- loops -->
+<path d="M 92 78 C 70 18, 130 18, 108 78" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="100" y="30" font-size="16" fill="magenta" text-anchor="middle" font-style="italic">a</text>
+<path d="M 212 78 C 190 18, 250 18, 228 78" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="220" y="30" font-size="16" fill="magenta" text-anchor="middle" font-style="italic">d</text>
+<!-- x -> y (top), y -> x (bottom) -->
+<path d="M 120 92 Q 160 70, 198 92" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="160" y="72" font-size="16" fill="magenta" text-anchor="middle" font-style="italic">b</text>
+<path d="M 200 112 Q 160 134, 122 112" fill="none" stroke="#333" stroke-width="1.2" marker-end="url(#arr)"/>
+<text x="160" y="140" font-size="16" fill="magenta" text-anchor="middle" font-style="italic">c</text>
+<!-- states -->
+<circle cx="100" cy="102" r="20" fill="#eeeeee" stroke="#333" stroke-width="1.2"/>
+<text x="100" y="108" font-size="17" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">x</text>
+<circle cx="220" cy="102" r="20" fill="#eeeeee" stroke="#333" stroke-width="1.2"/>
+<circle cx="220" cy="102" r="16" fill="none" stroke="#333" stroke-width="1"/>
+<text x="220" y="108" font-size="17" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace">y</text>
+</svg>
